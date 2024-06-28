@@ -314,6 +314,20 @@ class UecSrc : public PacketSink, public EventSource, public TriggerTarget {
     static simtime_picosec pacing_delay;
     bool first_quick_adapt = false;
 
+    // LCP.
+    simtime_picosec _previous_rtt_ewma;
+    simtime_picosec _current_rtt_ewma;
+    uint64_t _next_measurement_seq_no;
+    uint32_t _consecutive_good_epochs;
+    simtime_picosec _time_of_next_epoch;
+    // uint64_t _bytes_receieved_since_last_epoch;
+    simtime_picosec _time_of_last_qa;
+    bool _first_qa_measurement;
+
+    // LCP-Gemini.
+    uint64_t _next_window_seq_no;
+    simtime_picosec _current_rtt_measurement;
+
   private:
     uint32_t _unacked;
     uint32_t _effcwnd;
@@ -472,7 +486,7 @@ class UecSrc : public PacketSink, public EventSource, public TriggerTarget {
     void quick_adapt(bool);
     uint64_t get_unacked();
 
-    void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt);
+    void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno);
     uint32_t medium_increase(simtime_picosec);
     void fast_increase();
     bool no_ecn_last_target_rtt();
@@ -495,6 +509,8 @@ class UecSrc : public PacketSink, public EventSource, public TriggerTarget {
     void reduce_unacked(uint64_t amount);
     void check_limits_cwnd();
     void apply_timeout_penalty();
+    void update_pacing_delay();
+    void quick_adapt_drop();
 };
 
 class UecSink : public PacketSink, public DataReceiver {

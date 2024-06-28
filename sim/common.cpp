@@ -57,3 +57,23 @@ uint64_t BUFFER_SIZE_OLD = 8 * PKT_SIZE_OLD;                     // 8 Pkts
 uint64_t BDP_OLD_NDP = BASE_RTT_OLD * LINK_SPEED_OLD / 8; // BDP
 uint64_t MAX_CWD_OLD_NDP = BDP_OLD_NDP * 3;               // BDP * 1.2
 std::filesystem::path PROJECT_ROOT_PATH;
+// LCP Specific Values
+simtime_picosec TARGET_RTT_LOW = 0;
+simtime_picosec TARGET_RTT_HIGH = 0;
+simtime_picosec BAREMETAL_RTT = 0;
+double LCP_ALPHA = 0.5;
+double LCP_BETA = 0.8;
+double LCP_GAMMA = 0.3;
+uint32_t LCP_DELTA = 1;
+int LCP_K = 1;
+uint32_t LCP_FAST_INCREASE_THRESHOLD = 3;
+bool LCP_USE_QUICK_ADAPT = true;
+bool LCP_USE_PACING = true;
+bool LCP_USE_FAST_INCREASE = true;
+double LCP_PACING_BONUS = 0.05;
+bool LCP_USE_MIN_RTT = false;
+bool LCP_USE_AGGRESSIVE_DECREASE = false;
+// LCP-Gemini Specific Values.
+simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0;
+double LCP_GEMINI_H = 0.0;
+double LCP_GEMINI_BETA = 0.0;

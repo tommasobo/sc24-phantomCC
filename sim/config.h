@@ -46,6 +46,30 @@ extern uint64_t BDP_OLD_NDP;
 extern uint64_t MAX_CWD_OLD_NDP;
 extern uint64_t ENABLE_FAST_DROP;
 extern std::filesystem::path PROJECT_ROOT_PATH;
+// LCP
+extern simtime_picosec TARGET_RTT_LOW;
+extern simtime_picosec TARGET_RTT_HIGH;
+extern simtime_picosec BAREMETAL_RTT;
+extern double LCP_ALPHA;
+extern double LCP_BETA;
+extern double LCP_GAMMA;
+extern uint32_t LCP_DELTA;
+extern int LCP_K;
+extern uint32_t LCP_FAST_INCREASE_THRESHOLD;
+extern bool LCP_USE_QUICK_ADAPT;
+extern bool LCP_USE_PACING;
+extern bool LCP_USE_FAST_INCREASE;
+extern double LCP_PACING_BONUS;
+extern bool LCP_USE_MIN_RTT;
+extern bool LCP_USE_AGGRESSIVE_DECREASE;
+// LCP-Gemini
+extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
+extern double LCP_GEMINI_H;
+extern double LCP_GEMINI_BETA;
+//
+extern uint64_t MAX_CWD_OLD_NDP;
+extern uint64_t ENABLE_FAST_DROP;
+extern std::filesystem::path PROJECT_ROOT_PATH;
 
 int pareto(int xm, int mean);
 double exponential(double lambda);
