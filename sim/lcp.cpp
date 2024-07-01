@@ -119,7 +119,7 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 
     // internal_stop_pacing_rtt = 0;
 
-    _maxcwnd = starting_cwnd * 1;
+    _maxcwnd = bdp;
     _cwnd = starting_cwnd;
     _consecutive_low_rtt = 0;
     target_window = _cwnd;
@@ -378,18 +378,31 @@ void LcpSrc::doNextEvent() { startflow(); }
 void LcpSrc::set_end_trigger(Trigger &end_trigger) { _end_trigger = &end_trigger; }
 
 // Update Network Parameters
-void LcpSrc::updateParams() {
+void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     if (src_dc != dest_dc) {
         _hop_count = 9;
-        _base_rtt = ((((_hop_count - 2) * LINK_DELAY_MODERN) + (_interdc_delay / 1000) * 2) +
-                     ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) + +(_hop_count * LINK_DELAY_MODERN) +
-                     (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
-                    1000;
+        _base_rtt = 2 * (_hop_count - 1) * (LINK_DELAY_MODERN + switch_latency_ns)   + // All DCN latencies.
+                    2 * (_interdc_delay / 1000 + switch_latency_ns)                  + // InterDC latencies.
+                    _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             + // Packet transmission delays.
+                    _hop_count * 64 * 8 / LINK_SPEED_MODERN;                           // Ack transmission delays. 
+                    
+        
+        // ((((_hop_count - 1) * LINK_DELAY_MODERN) + (_interdc_delay / 1000) * 2) +
+        //              ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) + +(_hop_count * LINK_DELAY_MODERN) +
+        //              (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
+        //             1000;
+        cout << "Base RTT (9): " << _base_rtt << endl;
+        cout << "    LINK_DELAY_MODERN: " << LINK_DELAY_MODERN << endl;
+        cout << "    PKT_SIZE_MODERN: " << PKT_SIZE_MODERN << endl;
+        cout << "    LINK_SPEED_MODERN: " << LINK_SPEED_MODERN << endl;
+        cout << "    switch_latency_ns: " << switch_latency_ns << endl;
+        cout << "    _interdc_delay: " << _interdc_delay << endl;
     } else {
         _hop_count = 6;
         _base_rtt = ((_hop_count * LINK_DELAY_MODERN) + ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) +
                      +(_hop_count * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
                     1000;
+        cout << "Base RTT (6): " << _base_rtt << endl;
     }
 
     if (precision_ts != 1) {
@@ -420,12 +433,57 @@ void LcpSrc::updateParams() {
 
     _bdp = (_base_rtt * LINK_SPEED_MODERN / 8) / 1000;
 
-    _queue_size = _bdp; // Temporary
+        if (LCP_DELTA == 1) {
+        LCP_DELTA = _bdp * 0.05;
+    }
+    BAREMETAL_RTT = _base_rtt * 1000;
+    TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
+    TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
+
+    LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0.1 * BAREMETAL_RTT;
+    LCP_GEMINI_BETA = (double)LCP_GEMINI_TARGET_QUEUEING_LATENCY / ((double) LCP_GEMINI_TARGET_QUEUEING_LATENCY + (double) BAREMETAL_RTT);
+
+    double H = 1.2 * pow(10, -7);
+    cout << "Double of H: " << H * (double) _bdp << endl;
+    LCP_GEMINI_H = max(min((H * (double) _bdp), 5.0), 0.1) * (double) PKT_SIZE_MODERN;
+    if (LCP_GEMINI_H == 0) {
+        cout << "H is 0, raw value is: " << H * (double) _bdp << " exiting..." << endl;
+        exit(-1);
+    }
+
+    cout << "==============================" << endl;
+    cout << "Link speed: " << LINK_SPEED_MODERN << " Gbps" << endl;
+    cout << "Baremetal RTT: " << BAREMETAL_RTT / 1000000 << " us" << endl;
+    cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
+    cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
+    cout << "MSS: " << PKT_SIZE_MODERN << " Bytes" << endl;
+    cout << "BDP: " << _bdp / 1000 << " KB" << endl;
+    cout << "Starting cwnd: " << starting_cwnd << " Bytes" << endl;
+    cout << "Queue Size: " << _queue_size << " Bytes" << endl;
+    cout << "Delta: " << LCP_DELTA << endl;
+    cout << "Beta: " << LCP_BETA << endl;
+    cout << "Alpha: " << LCP_ALPHA << endl;
+    cout << "Gamma: " << LCP_GAMMA << endl;
+    cout << "K: " << LCP_K << endl;
+    cout << "Fast Increase Threshold: " << LCP_FAST_INCREASE_THRESHOLD << endl;
+    cout << "Use Quick Adapt: " << LCP_USE_QUICK_ADAPT << endl;
+    cout << "Use Pacing: " << LCP_USE_PACING << endl;
+    cout << "Use Fast Increase: " << LCP_USE_FAST_INCREASE << endl;
+    cout << "Pacing Bonus: " << LCP_PACING_BONUS << endl;
+    cout << "Use Min RTT: " << LCP_USE_MIN_RTT << endl;
+    cout << "Use Aggressive Decrease: " << LCP_USE_AGGRESSIVE_DECREASE << endl;
+    cout << "Gemini Queueing Delay Threshold: " << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << " us" << endl;
+    cout << "Gemini Beta: " << LCP_GEMINI_BETA << endl;
+    cout << "Gemini H: " << LCP_GEMINI_H << endl;
+    cout << "==============================" << endl;
+
+
+    // _queue_size = _bdp; // Temporary
     initial_x_gain = x_gain;
     initial_z_gain = z_gain;
 
     _maxcwnd = _bdp;
-    _cwnd = _bdp;
+    // _cwnd = _bdp;
 
     _consecutive_low_rtt = 0;
     target_window = _cwnd;
@@ -1410,16 +1468,18 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                     _cwnd *= (1.0 - total_factor);
                 }
                 cout << "    CWND change: " << nodename() << " more than 2x target high, go from " << cwnd_before << " to " << _cwnd << endl;
-            } else if (_current_rtt_ewma > TARGET_RTT_HIGH && (gradient * gradient) / gradient < 0.01) {
+            } else if (_current_rtt_ewma > TARGET_RTT_HIGH && abs(gradient) < 0.01) {
                 if (LCP_USE_AGGRESSIVE_DECREASE) {
                     // Target RTT is high and the gradient is near 0. Aggressive decrease.
                     _cwnd *= 0.5;
+                    cout << "    CWND change: " << nodename() << " more than target high and gradient 0 go from " << cwnd_before << " to " << _cwnd << endl;
                 } else {
                     double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
                     double latency_factor = LCP_BETA * (1.0 - latency_ratio);
                     double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
                     double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
                     _cwnd *= (1.0 - total_factor);
+                    cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
                 }
             } 
             else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
@@ -1544,723 +1604,6 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             MyFile4.close();
         }
     }
-
-    // bool can_decrease_exp_avg = false;
-    // exp_avg_ecn = exp_avg_alpha * ecn + (1 - exp_avg_alpha) * exp_avg_ecn;
-
-    // if (rtt > _target_rtt) {
-    //     exp_avg_rtt = exp_avg_alpha * 1 + (1 - exp_avg_alpha) * exp_avg_rtt;
-    // } else {
-    //     exp_avg_rtt = exp_avg_alpha * 0 + (1 - exp_avg_alpha) * exp_avg_rtt;
-    // }
-
-    // // ECN Check
-    // if (use_exp_avg_ecn) {
-    //     if (exp_avg_ecn > exp_avg_ecn_value) {
-    //         can_decrease_exp_avg = true;
-    //     }
-    // } // RTT Check
-    // else if (use_exp_avg_rtt) {
-    //     if (exp_avg_rtt > exp_avg_rtt_value) {
-    //         can_decrease_exp_avg = true;
-    //         printf("I am in here\n");
-    //     }
-    // } else {
-    //     can_decrease_exp_avg = true;
-    // }
-
-    // /* printf("From1 %d - Time %lu - ECN %d - Avg %f - Consecutive %lu vs %lu\n",
-    //        from, GLOBAL_TIME / 1000, ecn, exp_avg_ecn,
-    //        counter_consecutive_good_bytes, target_window); */
-
-    // if (algorithm_type == "intersmartt" || algorithm_type == "intersmartt_new") {
-    //     if (!ecn && current_ecn_rate <= 0 && GLOBAL_TIME > _base_rtt * 10) {
-    //         counter_consecutive_good_bytes += _mss;
-    //     } else {
-    //         target_window = _cwnd;
-    //         counter_consecutive_good_bytes = 0;
-    //         _consecutive_no_ecn = 0;
-    //         increasing = false;
-    //     }
-    // } else {
-    //     if (rtt <= (_base_rtt + (_mss * 8 / LINK_SPEED_MODERN * 5 * 1000)) && !ecn) {
-    //         counter_consecutive_good_bytes += _mss;
-    //     } else {
-    //         target_window = _cwnd;
-    //         counter_consecutive_good_bytes = 0;
-    //         _consecutive_no_ecn = 0;
-    //         increasing = false;
-    //     }
-    // }
-
-    // if (rtt >= _target_rtt) {
-    //     consecutive_good_medium = 0;
-    // }
-
-    // if (current_pkt < reaction_delay) {
-    //     // printf("Triggering ADJ\n");
-    //     // return;
-    // }
-    // current_pkt = 0;
-    // BTS Logic
-    // if (_bts_enabled) {
-    //     if (ecn && _ignore_ecn_ack) {
-    //         printf("BTS Case with ECN, ignore.");
-    //         _cwnd += ((double)_mss / _cwnd) * 0.1 * _mss;
-    //     } else if (counter_consecutive_good_bytes > _cwnd) {
-    //         _cwnd = _maxcwnd;
-    //         counter_consecutive_good_bytes = _cwnd / 2;
-    //         exp_avg_bts = 0;
-    //         exp_avg_route = 0;
-    //     } else if (!ecn) {
-    //         _cwnd += ((double)_mss / _cwnd) * 1 * _mss;
-
-    //     } else {
-    //         _cwnd += ((double)_mss / _cwnd) * 0 * _mss;
-    //     }
-    // } else {
-    //     if (algorithm_type == "smartt") {
-
-    //         if (use_fast_drop) {
-    //             if (count_received >= ignore_for) {
-    //                 quick_adapt(false);
-    //             }
-    //         }
-
-    //         if (t_last_decrease == 0) {
-    //             t_last_decrease = eventlist().now();
-    //         }
-    //         bool time_enough = (eventlist().now() - t_last_decrease) > _base_rtt;
-
-    //         if (count_received < ignore_for && ecn) {
-    //             return;
-    //         }
-
-    //         if (ecn && once_per_rtt >= 1) {
-    //             count_skipped++;
-    //             return;
-    //         }
-
-    //         if ((increasing || counter_consecutive_good_bytes > target_window) && use_fast_increase) {
-    //             fast_increase();
-    //             // Case 1 RTT Based Increase
-    //         } else if (!ecn && rtt < _target_rtt) {
-
-    //             _cwnd += (min(uint32_t((((_target_rtt - rtt) / (double)rtt) * y_gain * _mss * (_mss / (double)_cwnd))),
-    //                           uint32_t(_mss))) *
-    //                      reaction_delay;
-
-    //             if (!disable_case_4) {
-    //                 _cwnd += ((double)_mss / _cwnd) * x_gain * _mss * reaction_delay;
-    //             }
-
-    //             if (COLLECT_DATA) {
-    //                 _list_medium_increase_event.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    //                 count_case_1.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    //             }
-    //             //  Case 2 Hybrid Based Decrease || RTT Decrease
-    //         } else if (ecn && rtt > _target_rtt) {
-    //             if (can_decrease_exp_avg) {
-    //                 _cwnd -= reaction_delay * min(((w_gain * ((rtt - (double)_target_rtt) / rtt) * _mss) +
-    //                                                _cwnd / (double)_bdp * z_gain * _mss),
-    //                                               (double)_mss);
-    //             }
-    //             if (COLLECT_DATA) {
-    //                 count_case_2.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    //             }
-    //             //  Case 3 Gentle Decrease (Window based)
-    //         } else if (ecn && rtt < _target_rtt) {
-    //             if (can_decrease_exp_avg) {
-    //                 reduce_cwnd(static_cast<double>(_cwnd) / _bdp * _mss * z_gain * reaction_delay);
-    //                 if (COLLECT_DATA) {
-    //                     count_case_3.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    //                 }
-    //             }
-    //             //  Case 4
-    //         } else if (!ecn && rtt > _target_rtt) {
-    //             // Do nothing but fairness
-    //             if (!disable_case_4) {
-    //                 _cwnd += ((double)_mss / _cwnd) * x_gain * _mss * reaction_delay;
-    //             }
-    //             if (COLLECT_DATA) {
-    //                 count_case_4.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    //             }
-    //         }
-    //         // Delay Logic, Version C Logic
-
-    //     } else if (algorithm_type == "intersmartt") {
-    //         total_pkt_seen_rtt++;
-    //         quick_adapt(false);
-
-    //         if (_hop_count < 7 && false) {
-    //             if (tried_qa && eventlist().now() > last_qa_event + (_base_rtt * 1.5) && ecn) {
-    //                 _cwnd = _maxcwnd * 100.0 / 100;
-    //                 tried_qa = false;
-    //                 stop_decrease = true;
-
-    //                 if (use_pacing && generic_pacer != NULL) {
-    //                     pacing_delay = (4160 * 8) / ((_cwnd * 8.0) / (_base_rtt / 1000.0));
-    //                     pacing_delay *= 1000; // ps
-    //                     generic_pacer->cancel();
-    //                 }
-    //             }
-    //         }
-    //         if (stop_decrease)
-    //             return;
-    //         //     x_gain = min((_bdp / 100 * initial_x_gain) / _mss, (_switch_queue_size * 2.5 / 100) / _mss);
-    //         //  z_gain = initial_z_gain;
-    //         /* printf("Two Possible X Gains are %f - %f\n", (_bdp / 100 * initial_x_gain) / _mss,
-    //                (_switch_queue_size * 5.0 / 100) / _mss); */
-    //         /* printf("X Gain updated is %f - z gain is %f\n", x_gain, z_gain);
-    //         printf("Flow3 %d - Time %lu vs End %lu - First ECN %d \n", from, GLOBAL_TIME / 1000, ecn_rtt_end / 1000,
-    //                is_first_ecn); */
-
-    //         if (current_ecn_rate > previous_ecn_rate) {
-    //             last_phantom_increase = eventlist().now();
-    //         }
-
-    //         if (eventlist().now() > ecn_rtt_end) {
-    //             previous_ecn_rate = current_ecn_rate;
-    //             current_ecn_rate = ((double)pkt_with_ecn_rtt) / total_pkt_seen_rtt * 100;
-    //             ecn_rtt_end = eventlist().now() + ecn_rate_period;
-    //             /* printf("Flow %d - ECN vs TOT %d %d\n", from, pkt_with_ecn_rtt, total_pkt_seen_rtt); */
-    //             pkt_with_ecn_rtt = 0;
-    //             total_pkt_seen_rtt = 0;
-    //             count_add_from_zero_ecn = 0;
-    //             list_ecn_rate.push_back(std::make_pair(eventlist().now() / 1000, current_ecn_rate));
-
-    //             phantom_size_calc = (current_ecn_rate / 100) * (kmax_double - kmin_double) + kmin_double;
-    //             is_first_ecn = true;
-    //             last_freeze = eventlist().now();
-    //             if (pkt_with_ecn_rtt == 0) {
-    //                 counter_ecn_without_rtt++;
-    //             }
-
-    //             scaling_factor = abs(current_ecn_rate - previous_ecn_rate);
-    //             scaling_factor = scaling_factor / 100;
-    //             scaling_factor = 1;
-
-    //             // 4 cases
-    //             /* if (current_ecn_rate >= 30) {
-    //                 if (current_ecn_rate >= previous_ecn_rate) {
-    //                     printf("Flow2 %d %u - Above 30 - Decrease - Current Rate %f vs %f - Scaling %f\n", from,
-    //                            GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor);
-    //                 } else {
-    //                     printf("Flow2 %d %u - Above 30 - Increase - Current Rate %f vs %f - Scaling %f\n", from,
-    //                            GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor);
-    //                 }
-    //             } else {
-    //                 if (current_ecn_rate >= previous_ecn_rate) {
-    //                     printf("Flow2 %d %u - Below 30 - Decrease - Current Rate %f vs %f - Scaling %f\n", from,
-    //                            GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor);
-    //                 } else {
-    //                     printf("Flow2 %d %u - Below 30 - Increase - Current Rate %f vs %f - Scaling %f\n", from,
-    //                            GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor);
-    //                 }
-    //             } */
-    //         }
-    //         double x_gain_up = min((_bdp / 100 * initial_x_gain) / _mss, (_switch_queue_size * 6.0 / 100) / _mss);
-    //         x_gain_up = initial_x_gain;
-
-    //         if (ecn) {
-    //             // Quick Adapt if the ECN rate is above a certain %
-    //             if ((current_ecn_rate > 65 && _hop_count == 9) || (_hop_count < 9 && rtt > _base_rtt * 2.2)) {
-    //                 /* printf("ECN Rate HIGH %f - Time %lu\n", current_ecn_rate, GLOBAL_TIME / 1000); */
-    //                 if (eventlist().now() > next_qa) {
-    //                     need_quick_adapt = true;
-    //                     quick_adapt(true);
-    //                 }
-    //             }
-
-    //             current_state = GENTLE_DECREASE;
-    //             if (is_first_ecn && false) {
-    //                 is_first_ecn = false;
-    //                 pkt_with_ecn_rtt = 0;
-    //                 total_pkt_seen_rtt = 0;
-    //                 count_add_from_zero_ecn = 0;
-    //                 ecn_rtt_end = eventlist().now() + ecn_rate_period;
-    //             }
-    //             pkt_with_ecn_rtt++;
-
-    //             if (eventlist().now() > last_qa_event + _base_rtt) {
-    //                 if (current_ecn_rate > 30 && current_ecn_rate >= previous_ecn_rate) {
-    //                     /* printf("From2 %d - Time %lu - Current Rate %f vs %f - "
-    //                            "Phantom "
-    //                            "Queue Size %f "
-    //                            "- Pkts %d\n",
-    //                            from, GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, phantom_size_calc,
-    //                            count_add_from_zero_ecn); */
-    //                     if (count_received < ignore_for) {
-    //                         return;
-    //                     }
-    //                     _cwnd -= 4160 * initial_z_gain / 100;
-    //                     //_cwnd -= ((x_gain / 1) * _mss * ((double)_mss / _cwnd)) * scaling_factor;
-
-    //                     /* double minus = (_bdp * initial_z_gain / 100) / _mss;
-    //                     printf("Decrease Before above %d 30 at %lu - By %f - %d\n", from, GLOBAL_TIME / 1000,
-    //                            (((double)_mss / _cwnd) * (minus)*_mss), _cwnd);
-    //                     _cwnd -= min((((double)_mss / _cwnd) * (minus)*_mss), (double)_mss);
-    //                     printf("Decrease above %d 30 at %lu - By %f - %d\n", from, GLOBAL_TIME / 1000,
-    //                            (((double)_mss / _cwnd) * (minus)*_mss), _cwnd); */
-    //                 } else if (current_ecn_rate > 30 && current_ecn_rate <= previous_ecn_rate) {
-    //                     //_cwnd += (((double)_mss / _cwnd) * (x_gain)*_mss) * scaling_factor;
-    //                     _cwnd += (((double)_mss / _cwnd) * (x_gain_up / 50) * _mss) * 1;
-    //                     /* printf("Increase above %d 30 at %lu\n", from, GLOBAL_TIME / 1000); */
-    //                 }
-    //             }
-    //             last_ecn_seen = eventlist().now();
-    //         }
-
-    //         if (eventlist().now() > last_ecn_seen + (_base_rtt * 1.0) || current_ecn_rate < 30) {
-
-    //             if (eventlist().now() > last_ecn_seen + (_base_rtt * 1.0)) {
-    //                 // current_ecn_rate = 0;
-    //             }
-
-    //             /* printf("%d Doing fast Increase - %d - %d - %d - %d - %lu\n", from,
-    //                    eventlist().now() > last_ecn_seen + (_base_rtt * 1.5),
-    //                    eventlist().now() > last_phantom_increase + (_base_rtt * 2),
-    //                    (eventlist().now() > (_base_rtt * 3)), rtt < near_base_rtt, last_phantom_increase); */
-
-    //             if (use_fast_increase && eventlist().now() > last_ecn_seen + (_base_rtt * 1.5) && rtt < near_base_rtt &&
-    //                 eventlist().now() > last_phantom_increase + (_base_rtt * 2) &&
-    //                 (eventlist().now() > (_base_rtt * 3))) {
-
-    //                 fast_increase();
-    //             } else {
-    //                 if (eventlist().now() > current_bonus_end) {
-    //                     current_bonus_end = eventlist().now() + _base_rtt;
-    //                 }
-
-    //                 if (current_ecn_rate > previous_ecn_rate) {
-    //                     if (eventlist().now() > next_increase_at + _base_rtt / 2) {
-    //                         increasing_for *= 2;
-    //                         increasing_for = max(increasing_for, 16);
-    //                         next_increase_at = eventlist().now();
-    //                     }
-
-    //                 } else {
-    //                     increasing_for = 1;
-    //                 }
-
-    //                 if (current_ecn_rate > previous_ecn_rate) {
-    //                     gent_dec_amount = (x_gain_up / 2.2) * _mss * ((double)_mss / _cwnd);
-    //                     gent_dec_amount += (x_gain_up / 2.2) * _mss * ((double)_mss / _cwnd) * ((double)_cwnd) / _bdp;
-    //                     /* gent_dec_amount =
-    //                             ((double)_mss) *
-    //                             (((double)_cwnd) / _bdp * (z_gain / 1)); */
-    //                     if (count_received < ignore_for && ecn) {
-    //                         return;
-    //                     }
-    //                     _cwnd -= gent_dec_amount * scaling_factor;
-    //                     /* printf("Decrease below %d 30 at %lu\n", from, GLOBAL_TIME / 1000); */
-    //                 } else {
-    //                     /* printf("Increase below %d 30 at %lu - XGain %f\n", from, GLOBAL_TIME / 1000, x_gain_up); */
-    //                     _cwnd += (((double)_mss / _cwnd) * (x_gain_up / 1) * _mss) * 1;
-    //                 }
-    //             }
-    //         }
-    //         // printf("Window now %d\n", _cwnd);
-    //     } else if (algorithm_type == "intersmartt_test") {
-    //         if (ecn) {
-    //             last_ecn_seen = eventlist().now();
-    //         }
-    //         total_pkt_seen_rtt++;
-    //         if (ecn) {
-    //             pkt_with_ecn_rtt++;
-    //         }
-    //         quick_adapt(false);
-
-    //         if (current_ecn_rate > previous_ecn_rate) {
-    //             last_phantom_increase = eventlist().now();
-    //         }
-
-    //         if (eventlist().now() > ecn_rtt_end) {
-    //             previous_ecn_rate = current_ecn_rate;
-    //             current_ecn_rate = ((double)pkt_with_ecn_rtt) / total_pkt_seen_rtt * 100;
-    //             ecn_rtt_end = eventlist().now() + ecn_rate_period;
-    //             /* printf("Flow %d - ECN vs TOT %d %d\n", from, pkt_with_ecn_rtt, total_pkt_seen_rtt); */
-    //             pkt_with_ecn_rtt = 0;
-    //             total_pkt_seen_rtt = 0;
-    //             count_add_from_zero_ecn = 0;
-    //             list_ecn_rate.push_back(std::make_pair(eventlist().now() / 1000, current_ecn_rate));
-
-    //             if (pkt_with_ecn_rtt == 0) {
-    //                 counter_ecn_without_rtt++;
-    //             }
-
-    //             /* if (current_ecn_rate >= 30) {
-    //                 if (current_ecn_rate >= previous_ecn_rate) {
-    //                     printf("From %d - Above - Decrease\n", from);
-    //                 } else {
-    //                     printf("From %d - Above - Increase\n", from);
-    //                 }
-    //             } else {
-    //                 if ((use_fast_increase && eventlist().now() > last_ecn_seen + (_base_rtt * 1.5)) &&
-    //                     rtt < near_base_rtt && (eventlist().now() > (_base_rtt * 3))) {
-    //                     printf("From %d - Below - FastIncrease\n", from);
-    //                 } else if (current_ecn_rate >= previous_ecn_rate) {
-    //                     printf("From %d - Below - Decrease\n", from);
-    //                 } else {
-    //                     printf("From %d - Below - Increase\n", from);
-    //                 }
-    //             } */
-    //         }
-
-    //         // Special Case
-    //         if ((current_ecn_rate > 75 && _hop_count == 9) || (_hop_count < 9 && rtt > _base_rtt * 2.2)) {
-    //             /* printf("ECN Rate HIGH %f - Time %lu\n", current_ecn_rate, GLOBAL_TIME / 1000); */
-    //             // resetQACounting();
-    //             if (eventlist().now() > next_qa && eventlist().now() > ignore_for_time) {
-    //                 // need_quick_adapt = true;
-    //                 // quick_adapt(true);
-    //             }
-    //         }
-
-    //         if (_hop_count < 7) {
-    //             if (use_fast_drop) {
-    //                 quick_adapt(false);
-    //                 if (count_received < ignore_for) {
-    //                     return;
-    //                 }
-    //             }
-    //             if (ecn) {
-    //                 if (_cwnd > _mss + (_mss / 2)) {
-    //                     _cwnd -= (_mss / 2);
-    //                 } else {
-    //                     _cwnd = _mss;
-    //                 }
-    //             } else {
-    //                 if (eventlist().now() > last_ecn_seen + (_base_rtt * 3) && rtt < near_base_rtt) {
-    //                     fast_increase();
-    //                 }
-    //                 _cwnd += _mss * _mss / _cwnd;
-    //             }
-    //             check_limits_cwnd();
-    //             return;
-    //         }
-
-    //         // 4 cases
-    //         if (eventlist().now() < ignore_for_time) {
-    //             return;
-    //         }
-    //         if (current_ecn_rate >= 30) {
-    //             if (current_ecn_rate >= previous_ecn_rate) {
-
-    //                 //_cwnd -= 4160 * initial_z_gain / 100;
-    //                 gent_dec_amount = 0;
-    //                 gent_dec_amount = (x_gain_up * 1) * _mss * ((double)_mss / _cwnd);
-    //                 gent_dec_amount += (x_gain_up * 1) * _mss * ((double)_mss / _cwnd) * ((double)_cwnd) / _bdp;
-    //                 if (_cwnd > _mss + gent_dec_amount) {
-    //                     _cwnd -= gent_dec_amount;
-    //                 } else {
-    //                     _cwnd = _mss;
-    //                 }
-    //             } else {
-
-    //                 _cwnd += (((double)_mss / _cwnd) * (x_gain_up)*_mss) * 1.75;
-    //             }
-    //         } else {
-    //             if ((use_fast_increase && eventlist().now() > last_ecn_seen + (_base_rtt * 1.5)) &&
-    //                 rtt < near_base_rtt && (eventlist().now() > (_base_rtt * 3))) {
-
-    //                 fast_increase();
-    //             } else if (current_ecn_rate > previous_ecn_rate) {
-    //                 /* printf("Flow2 %d %u - Below 30 - Decrease - Current Rate %f vs %f - Scaling %f\n", from,
-    //                        GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor); */
-    //                 gent_dec_amount = (x_gain_up / 2) * _mss * ((double)_mss / _cwnd);
-    //                 gent_dec_amount += (x_gain_up / 2) * _mss * ((double)_mss / _cwnd) * ((double)_cwnd) / _bdp;
-    //                 if (count_received < ignore_for && ecn) {
-    //                     return;
-    //                 }
-    //                 if (_cwnd > _mss + gent_dec_amount) {
-    //                     _cwnd -= gent_dec_amount;
-    //                 } else {
-    //                     _cwnd = _mss;
-    //                 }
-
-    //             } else {
-    //                 _cwnd += (((double)_mss / _cwnd) * (x_gain_up * 1.75) * _mss);
-    //                 /* printf("Flow2 %d %u - Below 30 - Increase - Current Rate %f vs %f - Scaling %f\n", from,
-    //                        GLOBAL_TIME / 1000, current_ecn_rate, previous_ecn_rate, scaling_factor); */
-    //             }
-    //         }
-
-    //         // printf("Window now %d\n", _cwnd);
-    //     } else if (algorithm_type == "gemini") {
-
-    //         congested_dcn = ecn;
-    //         congested_wan = rtt > _base_rtt * 1.1;
-
-    //         if (congested_dcn || congested_wan) {
-    //             if (eventlist().now() > last_gemini_decrease * _base_rtt) {
-    //                 F_gemini = 4 * k_gemini / (c_gemini * _base_rtt + k_gemini);
-    //                 f_dcn_gemini = alpha_gemini * F_gemini * congested_dcn;
-    //                 f_wan_gemini = beta_gemini * congested_wan;
-    //                 _cwnd = _cwnd * (1 - max(f_dcn_gemini, f_wan_gemini));
-    //             }
-    //         } else {
-    //             h_gemini = H_gemini * c_gemini * _base_rtt;
-    //             _cwnd = _cwnd + h_gemini / _cwnd;
-    //         }
-
-    //     } else if (algorithm_type == "mprdma") {
-    //         if (use_fast_drop) {
-    //             quick_adapt(false);
-    //             if (count_received < ignore_for) {
-    //                 return;
-    //             }
-    //         }
-    //         if (ecn) {
-    //             _cwnd -= _mss / 2;
-    //         } else {
-    //             _cwnd += _mss * _mss / _cwnd;
-    //         }
-    //     } else if (algorithm_type == "mprdma2") {
-
-    //         total_pkt_seen_rtt++;
-    //         if (ecn) {
-    //             pkt_with_ecn_rtt++;
-    //         }
-    //         if (eventlist().now() > ecn_rtt_end) {
-    //             previous_ecn_rate = current_ecn_rate;
-    //             current_ecn_rate = ((double)pkt_with_ecn_rtt) / total_pkt_seen_rtt * 100;
-    //             ecn_rtt_end = eventlist().now() + ecn_rate_period;
-    //             printf("Flow %d - ECN vs TOT %d %d\n", from, pkt_with_ecn_rtt, total_pkt_seen_rtt);
-    //             pkt_with_ecn_rtt = 0;
-    //             total_pkt_seen_rtt = 0;
-    //             count_add_from_zero_ecn = 0;
-    //             list_ecn_rate.push_back(std::make_pair(eventlist().now() / 1000, current_ecn_rate));
-
-    //             if (pkt_with_ecn_rtt == 0) {
-    //                 counter_ecn_without_rtt++;
-    //             }
-    //             if (current_ecn_rate > previous_ecn_rate) {
-    //                 last_phantom_increase = eventlist().now();
-    //             }
-    //         }
-
-    //         if (use_fast_drop) {
-    //             quick_adapt(false);
-    //             if (count_received < ignore_for) {
-    //                 return;
-    //             }
-    //         }
-    //         if (ecn) {
-    //             _cwnd -= _mss / 2;
-    //             last_ecn_seen = eventlist().now();
-    //         } else {
-    //             _cwnd += (_mss * _mss / _cwnd);
-    //             if (eventlist().now() > last_ecn_seen + (_base_rtt * 2) ||
-    //                 eventlist().now() > last_phantom_increase + (_base_rtt * 1)) {
-    //                 if (use_fast_increase && _hop_count > 6) {
-    //                     fast_increase();
-    //                 }
-    //             }
-    //         }
-    //     } else if (algorithm_type == "mprdma3") {
-    //         _cwnd = _maxcwnd * 45 / 100;
-    //     } else if (algorithm_type == "lcp") {
-    //         if (_current_rtt_ewma == timeFromMs(0)) {
-    //             _current_rtt_ewma = rtt;
-    //         } else {
-    //             if (LCP_USE_MIN_RTT) {
-    //                 _current_rtt_ewma = min(_current_rtt_ewma, rtt);
-    //             } else {
-    //                 _current_rtt_ewma = _current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt;
-    //             }
-    //         }
-    //         // printf("\t_current_rtt_ewma: %d _previous_rtt_ewma: %d rtt: %d alpha: %f curackno: %lu\n", _current_rtt_ewma, _previous_rtt_ewma, rtt, LCP_ALPHA, ackno);
-
-    //         if (_current_rtt_ewma > TARGET_RTT_LOW) {
-    //             _consecutive_good_epochs = 0;
-    //         }
-
-    //         if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-    //             printf("Doing fi\n");
-    //             fast_increase();
-    //         }
-
-    //         // _bytes_receieved_since_last_epoch += _mss;
-
-    //         if (eventlist().now() >= _time_of_next_epoch) {
-    //             cout << "TimeEpoch time: " << eventlist().now() / 1000000 << "  ack sequence number: " << ackno << " next measurement sequence number: " << _next_measurement_seq_no << " highest sent seq no: " << _highest_sent << " abdul'sfix for measurement: " << _highest_sent + 1 << " cwnd: " << _cwnd << endl;
-    //             // cout << "According to me bytes receieved since last time... " << _bytes_receieved_since_last_epoch << endl;
-    //             quick_adapt(false);
-    //             _time_of_next_epoch = eventlist().now() + TARGET_RTT_LOW;
-    //             // _bytes_receieved_since_last_epoch = 0;
-    //         }
-
-    //         // Next measurement epoch has begun.
-    //         if (ackno >= _next_measurement_seq_no) {
-    //             cout << "ByteEpoch time: " << eventlist().now() / 1000000 << "  ack sequence number: " << ackno << " next measurement sequence number: " << _next_measurement_seq_no << " highest sent seq no: " << _highest_sent << " abdul'sfix for measurement: " << _highest_sent + 1 << " cwnd: " << _cwnd << endl;
-    //             if (_current_rtt_ewma < TARGET_RTT_LOW) {
-    //                 _consecutive_good_epochs++;
-    //             } else {
-    //                 _consecutive_good_epochs = 0;
-    //             }
-
-    //             if (_previous_rtt_ewma == timeFromMs(0)) {
-    //                 _previous_rtt_ewma = _current_rtt_ewma;
-    //             }
-    //             int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
-    //             cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
-
-    //             uint32_t cwnd_before = _cwnd;
-
-    //             // Translate rtt_change into a rate.
-    //             double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-    //             cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-    //             cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-    //             if (_current_rtt_ewma < TARGET_RTT_LOW) {
-    //                 _cwnd += (uint32_t)LCP_DELTA;
-    //                 cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
-    //             } else if (_current_rtt_ewma > 2 * TARGET_RTT_HIGH) {
-    //                 if (LCP_USE_QUICK_ADAPT) {
-    //                     quick_adapt_drop();
-    //                 } else {
-    //                     double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-    //                     double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-    //                     double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-    //                     double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-    //                     _cwnd *= (1.0 - total_factor);
-    //                 }
-    //                 cout << "    CWND change: " << nodename() << " more than 2x target high, go from " << cwnd_before << " to " << _cwnd << endl;
-    //             } else if (_current_rtt_ewma > TARGET_RTT_HIGH && (gradient * gradient) / gradient < 0.01) {
-    //                 if (LCP_USE_AGGRESSIVE_DECREASE) {
-    //                     // Target RTT is high and the gradient is near 0. Aggressive decrease.
-    //                     _cwnd *= 0.5;
-    //                 } else {
-    //                     double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-    //                     double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-    //                     double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-    //                     double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-    //                     _cwnd *= (1.0 - total_factor);
-    //                 }
-    //             } 
-    //             else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-    //                 double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-    //                 double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-    //                 double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-    //                 double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-    //                 _cwnd *= (1.0 - total_factor);
-    //                 cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
-    //             } else if (gradient <= 0.0) {
-    //                 _cwnd += _mss;
-    //                 cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
-    //             } else {
-    //                 double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-    //                 _cwnd *= (1 - gradient_change);
-    //                 cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
-    //             }
-            
-    //             // Reset State.
-    //             _next_measurement_seq_no = _highest_sent + 1;
-    //             _previous_rtt_ewma = _current_rtt_ewma;
-
-    //             check_limits_cwnd();
-
-    //             if (COLLECT_DATA) {
-    //                 std::string file_name =
-    //                         PROJECT_ROOT_PATH /
-    //                         ("sim/output/current_rtt_ewma/current_rtt_ewma_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //                 std::ofstream MyFile(file_name, std::ios_base::app);
-    //                 MyFile << eventlist().now() / 1000 << "," << _current_rtt_ewma / 1000 << std::endl;
-    //                 MyFile.close();
-
-    //                 file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //                 std::ofstream MyFile2(file_name, std::ios_base::app);
-    //                 MyFile2 << eventlist().now() / 1000 << "," << TARGET_RTT_LOW /1000 << std::endl;
-    //                 MyFile2.close();
-
-    //                 file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //                 std::ofstream MyFile3(file_name, std::ios_base::app);
-    //                 MyFile3 << eventlist().now() / 1000 << "," << TARGET_RTT_HIGH / 1000 << std::endl;
-    //                 MyFile3.close();
-
-    //                 file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //                 std::ofstream MyFile4(file_name, std::ios_base::app);
-    //                 MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
-    //                 MyFile4.close();
-    //             }
-
-    //             if (LCP_USE_MIN_RTT) {
-    //                 _current_rtt_ewma = timeFromMs(0);
-    //             }
-    //         }
-    //     } else if (algorithm_type == "lcp-gemini") {
-    //         if (_current_rtt_measurement == timeFromMs(0)) {
-    //             _current_rtt_measurement = rtt;
-    //         } else {
-    //             _current_rtt_measurement = min(_current_rtt_measurement, rtt);
-    //         }
-    //         double cwnd_before = _cwnd;
-
-    //         if (_current_rtt_measurement > BAREMETAL_RTT + LCP_GEMINI_TARGET_QUEUEING_LATENCY) {
-    //             _consecutive_good_epochs = 0;
-    //         }
-
-    //         // Additive increase.
-    //         if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-    //             printf("Doing fi\n");
-    //             fast_increase();
-    //         } {
-    //             _cwnd += (double)LCP_GEMINI_H / ((double)_cwnd / (double)_mss);
-    //         }
-
-    //         cout << "CWND change: " << nodename() << " AI from " << cwnd_before << " to " << _cwnd << " h: " << LCP_GEMINI_H << " current_rtt_measurement: " << _current_rtt_measurement << " target_rtt: " << BAREMETAL_RTT + LCP_GEMINI_TARGET_QUEUEING_LATENCY << " rtt: " << rtt << endl;
-
-    //         // Make sure the CWND has increased.
-    //         assert(_cwnd == _maxcwnd || _cwnd > cwnd_before);
-
-    //         // Window ended, examine RTT.
-    //         if (ackno >= _next_window_seq_no) {
-    //             if (_current_rtt_ewma < TARGET_RTT_LOW) {
-    //                 _consecutive_good_epochs++;
-    //             } else {
-    //                 _consecutive_good_epochs = 0;
-    //             }
-
-
-    //             cout << "ByteEpoch time: " << eventlist().now() / 1000000 << " ack sequence number: " << ackno << " next measurement sequence number: " << _next_window_seq_no << " highest sent seq no: " << _highest_sent << " abdul'sfix for measurement: " << _highest_sent + 1 << " cwnd: " << _cwnd << endl;
-    //             if (_current_rtt_measurement > BAREMETAL_RTT + LCP_GEMINI_TARGET_QUEUEING_LATENCY) {
-    //                 _cwnd *= (1.0 - LCP_GEMINI_BETA);
-    //                 cout << "CWND change: " << nodename() << " MD from " << cwnd_before << " to " << _cwnd << " h: " << LCP_GEMINI_H << " beta: " << LCP_GEMINI_BETA << endl;
-    //             }
-                
-    //             _current_rtt_measurement = timeFromMs(0);
-    //             _next_window_seq_no = _highest_sent + 1;
-    //         }
-
-    //         if (COLLECT_DATA) {
-    //             std::string file_name =
-    //                     PROJECT_ROOT_PATH /
-    //                     ("sim/output/current_rtt_ewma/current_rtt_ewma_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //             if (_current_rtt_measurement != timeFromMs(0)) {
-    //                 std::ofstream MyFile(file_name, std::ios_base::app);
-    //                 MyFile << eventlist().now() / 1000 << "," << _current_rtt_measurement / 1000 << std::endl;
-    //                 MyFile.close();
-    //             }
-
-    //             file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //             std::ofstream MyFile3(file_name, std::ios_base::app);
-    //             MyFile3 << eventlist().now() / 1000 << "," << (BAREMETAL_RTT + LCP_GEMINI_TARGET_QUEUEING_LATENCY) / 1000 << std::endl;
-    //             MyFile3.close();
-
-    //             file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency_" + _name + "_" +
-    //                                         std::to_string(tag) + ".txt");
-    //             std::ofstream MyFile4(file_name, std::ios_base::app);
-    //             MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
-    //             MyFile4.close();
-    //         }
-    //     }
-    // }
 
     check_limits_cwnd();
 }
@@ -2462,7 +1805,7 @@ void LcpSrc::send_packets() {
     }
 }
 
-void permute_sequence_uec(vector<int> &seq) {
+void permute_sequence_lcp(vector<int> &seq) {
     size_t len = seq.size();
     for (uint32_t i = 0; i < len; i++) {
         seq[i] = i;
@@ -2485,7 +1828,7 @@ void LcpSrc::set_paths(uint32_t no_of_paths) {
     }
 
     _path_ids.resize(no_of_paths);
-    permute_sequence_uec(_path_ids);
+    permute_sequence_lcp(_path_ids);
 
     _paths.resize(no_of_paths);
     _original_paths.resize(no_of_paths);

@@ -6,7 +6,7 @@ CRT=`pwd`
 INCLUDE= -I/$(CRT)/.. -I$(CRT) 
 LIB=-L.. 
 
-all:	htsim_tcp htsim_ndp htsim_roce htsim_swift htsim_hpcc htsim_ndp_entry_modern htsim_uec_entry_modern htsim_swift_entry htsim_ndp_entry_modern_os htsim_uec_entry_modern_os htsim_uec_drop_entry htsim_uec htsim_lcp htsim_swift_trimming htsim_bbr
+all:	htsim_tcp htsim_ndp htsim_roce htsim_swift htsim_hpcc htsim_ndp_entry_modern htsim_uec_entry_modern htsim_lcp_entry_modern htsim_swift_entry htsim_ndp_entry_modern_os htsim_uec_entry_modern_os htsim_uec_drop_entry htsim_uec htsim_lcp htsim_swift_trimming htsim_bbr
 
 
 htsim_tcp: main_tcp.o firstfit.o ../libhtsim.a vl2_topology.o fat_tree_topology.o fat_tree_interdc_topology.o fat_tree_switch.o fat_tree_interdc_switch.o dragon_fly_topology.o bcube_topology.o connection_matrix.o oversubscribed_fat_tree_topology.o shortflows.o multihomed_fat_tree_topology.o star_topology.o
@@ -41,6 +41,9 @@ htsim_swift: main_swift.o firstfit.o ../libhtsim.a vl2_topology.o fat_tree_topol
 htsim_uec_entry_modern: main_uec_entry_modern.o firstfit.o ../libhtsim.a vl2_topology.o fat_tree_topology.o fat_tree_interdc_topology.o fat_tree_switch.o fat_tree_interdc_switch.o bcube_topology.o connection_matrix.o oversubscribed_fat_tree_topology.o shortflows.o multihomed_fat_tree_topology.o star_topology.o logsim-interface.o
 	$(CC)  $(CFLAGS) $^ $(LIB) -lhtsim -o htsim_uec_entry_modern
 
+htsim_lcp_entry_modern: main_lcp_entry_modern.o firstfit.o ../libhtsim.a vl2_topology.o fat_tree_topology.o fat_tree_interdc_topology.o fat_tree_switch.o fat_tree_interdc_switch.o bcube_topology.o connection_matrix.o oversubscribed_fat_tree_topology.o shortflows.o multihomed_fat_tree_topology.o star_topology.o logsim-interface.o
+	$(CC)  $(CFLAGS) $^ $(LIB) -lhtsim -o htsim_lcp_entry_modern
+
 htsim_swift_entry: main_swift_entry.o firstfit.o ../libhtsim.a vl2_topology.o fat_tree_topology.o fat_tree_interdc_topology.o fat_tree_switch.o fat_tree_interdc_switch.o bcube_topology.o connection_matrix.o oversubscribed_fat_tree_topology.o shortflows.o multihomed_fat_tree_topology.o star_topology.o logsim-interface.o
 	$(CC)  $(CFLAGS) $^ $(LIB) -lhtsim -o htsim_swift_entry
 
@@ -58,6 +61,9 @@ htsim_ndp_entry_modern_os: main_ndp_entry_modern_os.o firstfit.o ../libhtsim.a v
 
 main_uec_entry_modern.o: main_uec_entry_modern.cpp ../lgs/logsim.h logsim-interface.h
 	$(CC) $(INCLUDE) $(CFLAGS) -c main_uec_entry_modern.cpp 
+
+main_lcp_entry_modern.o: main_lcp_entry_modern.cpp ../lgs/logsim.h logsim-interface.h
+	$(CC) $(INCLUDE) $(CFLAGS) -c main_lcp_entry_modern.cpp 
 
 main_uec_entry_modern_os.o: main_uec_entry_modern_os.cpp ../lgs/logsim.h logsim-interface.h
 	$(CC) $(INCLUDE) $(CFLAGS) -c main_uec_entry_modern_os.cpp 
