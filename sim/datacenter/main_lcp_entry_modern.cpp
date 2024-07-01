@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     double drop_value_buffer = 1;
     double starting_cwnd_ratio = 0;
     uint64_t explicit_starting_cwnd = 0;
-    uint64_t actual_starting_cwnd = 0;
+    uint64_t actual_starting_cwnd = 1;
     uint64_t explicit_starting_buffer = 0;
     uint64_t explicit_base_rtt = 0;
     uint64_t explicit_target_rtt = 0;
@@ -698,9 +698,6 @@ int main(int argc, char **argv) {
                                  (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
     uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
 
-    if (actual_starting_cwnd == 0) {
-        actual_starting_cwnd = bdp_local; // Equal to BDP if not other info
-    }
     if (queue_size_ratio == 0) {
         queuesize = bdp_local; // Equal to BDP if not other info
     } else {
@@ -715,55 +712,10 @@ int main(int argc, char **argv) {
     //     LcpSrc::set_explicit_bdp(explicit_bdp);
     // }
 
-    LcpSrc::set_starting_cwnd(actual_starting_cwnd);
     if (max_queue_size != 0) {
         queuesize = max_queue_size;
         LcpSrc::set_switch_queue_size(max_queue_size);
     }
-
-    // if (LCP_DELTA == 1) {
-    //     LCP_DELTA = bdp_local * 0.05;
-    // }
-    // BAREMETAL_RTT = base_rtt_max_hops * 1000;
-    // TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
-    // TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
-
-    // LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0.1 * BAREMETAL_RTT;
-    // LCP_GEMINI_BETA = (double)LCP_GEMINI_TARGET_QUEUEING_LATENCY / ((double) LCP_GEMINI_TARGET_QUEUEING_LATENCY + (double) BAREMETAL_RTT);
-
-    // double H = 1.2 * pow(10, -7);
-    // cout << "Double of H: " << H * (double) bdp_local << endl;
-    // LCP_GEMINI_H = max(min((H * (double) bdp_local), 5.0), 0.1) * (double) PKT_SIZE_MODERN;
-    // if (LCP_GEMINI_H == 0) {
-    //     cout << "H is 0, raw value is: " << H * (double) bdp_local << " exiting..." << endl;
-    //     exit(-1);
-    // }
-
-    // cout << "==============================" << endl;
-    // cout << "Link speed: " << LINK_SPEED_MODERN << " GBps" << endl;
-    // cout << "Baremetal RTT: " << BAREMETAL_RTT / 1000000 << " us" << endl;
-    // cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
-    // cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
-    // cout << "MSS: " << PKT_SIZE_MODERN << " Bytes" << endl;
-    // cout << "BDP: " << bdp_local / 1000 << " KB" << endl;
-    // cout << "Starting cwnd: " << actual_starting_cwnd << " Bytes" << endl;
-    // cout << "Queue Size: " << queuesize << " Bytes" << endl;
-    // cout << "Delta: " << LCP_DELTA << endl;
-    // cout << "Beta: " << LCP_BETA << endl;
-    // cout << "Alpha: " << LCP_ALPHA << endl;
-    // cout << "Gamma: " << LCP_GAMMA << endl;
-    // cout << "K: " << LCP_K << endl;
-    // cout << "Fast Increase Threshold: " << LCP_FAST_INCREASE_THRESHOLD << endl;
-    // cout << "Use Quick Adapt: " << LCP_USE_QUICK_ADAPT << endl;
-    // cout << "Use Pacing: " << LCP_USE_PACING << endl;
-    // cout << "Use Fast Increase: " << LCP_USE_FAST_INCREASE << endl;
-    // cout << "Pacing Bonus: " << LCP_PACING_BONUS << endl;
-    // cout << "Use Min RTT: " << LCP_USE_MIN_RTT << endl;
-    // cout << "Use Aggressive Decrease: " << LCP_USE_AGGRESSIVE_DECREASE << endl;
-    // cout << "Gemini Queueing Delay Threshold: " << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << " us" << endl;
-    // cout << "Gemini Beta: " << LCP_GEMINI_BETA << endl;
-    // cout << "Gemini H: " << LCP_GEMINI_H << endl;
-    // cout << "==============================" << endl;
 
     printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu - RTT "
            "%lu - Bandwidth %lu\n",
@@ -943,17 +895,9 @@ int main(int argc, char **argv) {
 
             /* Route *myin = new Route(*top->get_paths(src, dest)->at(0));
             int hops = myin->hop_count(); // hardcoded for now */
-
-            uint64_t actual_starting_cwnd = 0;
             uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
                                          (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
             uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
-
-            if (starting_cwnd_ratio == 0) {
-                actual_starting_cwnd = bdp_local; // Equal to BDP if not other info
-            } else {
-                actual_starting_cwnd = bdp_local * starting_cwnd_ratio;
-            }
 
             LcpSrc::set_starting_cwnd(actual_starting_cwnd);
             printf("Setting CWND to %lu\n", actual_starting_cwnd);

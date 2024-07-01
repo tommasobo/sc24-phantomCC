@@ -386,11 +386,6 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
                     _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
                     _hop_count * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
                     
-        
-        // ((((_hop_count - 1) * LINK_DELAY_MODERN) + (_interdc_delay / 1000) * 2) +
-        //              ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) + +(_hop_count * LINK_DELAY_MODERN) +
-        //              (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
-        //             1000;
         cout << "Base RTT (9): " << _base_rtt << endl;
         cout << "    LINK_DELAY_MODERN: " << LINK_DELAY_MODERN << endl;
         cout << "    PKT_SIZE_MODERN: " << PKT_SIZE_MODERN << endl;
@@ -433,7 +428,15 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
 
     _bdp = (_base_rtt * LINK_SPEED_MODERN / 8) / 1000;
 
-        if (LCP_DELTA == 1) {
+    if (starting_cwnd == 1) {
+        cout << "Setting CWND to: " << _bdp << endl;
+        _cwnd = _bdp;
+    } else {
+        cout << "thestartcwnd " << starting_cwnd << endl;
+        _cwnd = starting_cwnd;
+    }
+
+    if (LCP_DELTA == 1) {
         LCP_DELTA = _bdp * 0.05;
     }
     BAREMETAL_RTT = _base_rtt;
@@ -457,7 +460,7 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
     cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
     cout << "MSS: " << PKT_SIZE_MODERN << " Bytes" << endl;
-    cout << "BDP: " << _bdp << " KB" << endl;
+    cout << "BDP: " << _bdp / 1000 << " KB" << endl;
     cout << "Starting cwnd: " << starting_cwnd << " Bytes" << endl;
     cout << "Queue Size: " << _queue_size << " Bytes" << endl;
     cout << "Delta: " << LCP_DELTA << endl;
