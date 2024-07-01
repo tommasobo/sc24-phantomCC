@@ -381,10 +381,10 @@ void LcpSrc::set_end_trigger(Trigger &end_trigger) { _end_trigger = &end_trigger
 void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     if (src_dc != dest_dc) {
         _hop_count = 9;
-        _base_rtt = 2 * (_hop_count - 1) * (LINK_DELAY_MODERN + switch_latency_ns)   + // All DCN latencies.
-                    2 * (_interdc_delay / 1000 + switch_latency_ns)                  + // InterDC latencies.
-                    _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             + // Packet transmission delays.
-                    _hop_count * 64 * 8 / LINK_SPEED_MODERN;                           // Ack transmission delays. 
+        _base_rtt = (2 * (_hop_count - 1) * (LINK_DELAY_MODERN + switch_latency_ns)  +  // All DCN latencies.
+                    2 * (_interdc_delay / 1000 + switch_latency_ns)                  +  // InterDC latencies.
+                    _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
+                    _hop_count * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
                     
         
         // ((((_hop_count - 1) * LINK_DELAY_MODERN) + (_interdc_delay / 1000) * 2) +
@@ -436,7 +436,7 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
         if (LCP_DELTA == 1) {
         LCP_DELTA = _bdp * 0.05;
     }
-    BAREMETAL_RTT = _base_rtt * 1000;
+    BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
     TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
 
@@ -457,7 +457,7 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
     cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
     cout << "MSS: " << PKT_SIZE_MODERN << " Bytes" << endl;
-    cout << "BDP: " << _bdp / 1000 << " KB" << endl;
+    cout << "BDP: " << _bdp << " KB" << endl;
     cout << "Starting cwnd: " << starting_cwnd << " Bytes" << endl;
     cout << "Queue Size: " << _queue_size << " Bytes" << endl;
     cout << "Delta: " << LCP_DELTA << endl;
