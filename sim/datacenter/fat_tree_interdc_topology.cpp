@@ -295,6 +295,8 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
 
     cout << "Fat Tree topology with " << timeAsUs(_hop_latency) << "us links and " << timeAsUs(_switch_latency)
          << "us switching latency." << endl;
+
+    set_queue_sizes(queuesize);
     set_params(no_of_nodes);
 
     init_network();
@@ -313,6 +315,8 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     failed_links = 0;
     _hop_latency = timeFromUs((uint32_t)1);
     _switch_latency = timeFromUs((uint32_t)0);
+
+    set_queue_sizes(queuesize);
 
     cout << "Fat tree topology (1) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);
@@ -336,6 +340,8 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
 
     failed_links = num_failed;
 
+    set_queue_sizes(queuesize);
+
     cout << "Fat tree topology (2) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);
 
@@ -357,6 +363,9 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     ff = fit;
 
     failed_links = num_failed;
+
+    
+    set_queue_sizes(queuesize);
 
     cout << "Fat tree topology (3) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);

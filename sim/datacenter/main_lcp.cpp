@@ -1,4 +1,3 @@
-
 // -*- c-basic-offset: 4; indent-tabs-mode: nil -*-
 #include "config.h"
 #include <sstream>
@@ -16,7 +15,7 @@
 #include "randomqueue.h"
 #include "shortflows.h"
 #include "topology.h"
-#include "uec.h"
+#include "lcp.h"
 #include <iostream>
 #include <math.h>
 #include <string.h>
@@ -125,7 +124,7 @@ int main(int argc, char **argv) {
     int number_entropies = 256;
     queue_type queue_choice = COMPOSITE;
     bool ignore_ecn_data = true;
-    UecSrc::set_fast_drop(false);
+    LcpSrc::set_fast_drop(false);
     bool do_jitter = false;
     bool do_exponential_gain = false;
     bool use_fast_increase = false;
@@ -198,7 +197,7 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-ratio_os_stage_1")) {
             ratio_os_stage_1 = atoi(argv[i + 1]);
-            UecSrc::set_os_ratio_stage_1(ratio_os_stage_1);
+            LcpSrc::set_os_ratio_stage_1(ratio_os_stage_1);
             i++;
         } else if (!strcmp(argv[i], "-kmax")) {
             // kmin as percentage of queue size (0..100)
@@ -215,12 +214,12 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-disable_case_3")) {
             disable_case_3 = atoi(argv[i + 1]);
-            UecSrc::set_disable_case_3(disable_case_3);
+            LcpSrc::set_disable_case_3(disable_case_3);
             printf("DisableCase3: %d\n", disable_case_3);
             i++;
         } else if (!strcmp(argv[i], "-disable_case_4")) {
             disable_case_4 = atoi(argv[i + 1]);
-            UecSrc::set_disable_case_4(disable_case_4);
+            LcpSrc::set_disable_case_4(disable_case_4);
             printf("DisableCase4: %d\n", disable_case_4);
             i++;
         } else if (!strcmp(argv[i], "-number_entropies")) {
@@ -238,7 +237,7 @@ int main(int argc, char **argv) {
             ignore_ecn_data = atoi(argv[i + 1]);
             i++;
         } else if (!strcmp(argv[i], "-fast_drop")) {
-            UecSrc::set_fast_drop(atoi(argv[i + 1]));
+            LcpSrc::set_fast_drop(atoi(argv[i + 1]));
             printf("FastDrop: %d\n", atoi(argv[i + 1]));
             i++;
         } else if (!strcmp(argv[i], "-seed")) {
@@ -254,66 +253,66 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-do_jitter")) {
             do_jitter = atoi(argv[i + 1]);
-            UecSrc::set_do_jitter(do_jitter);
+            LcpSrc::set_do_jitter(do_jitter);
             printf("DoJitter: %d\n", do_jitter);
             i++;
         } else if (!strcmp(argv[i], "-do_exponential_gain")) {
             do_exponential_gain = atoi(argv[i + 1]);
-            UecSrc::set_do_exponential_gain(do_exponential_gain);
+            LcpSrc::set_do_exponential_gain(do_exponential_gain);
             printf("DoExpGain: %d\n", do_exponential_gain);
             i++;
         } else if (!strcmp(argv[i], "-use_fast_increase")) {
             use_fast_increase = atoi(argv[i + 1]);
-            UecSrc::set_use_fast_increase(use_fast_increase);
+            LcpSrc::set_use_fast_increase(use_fast_increase);
             printf("FastIncrease: %d\n", use_fast_increase);
             i++;
         } else if (!strcmp(argv[i], "-use_super_fast_increase")) {
             use_super_fast_increase = atoi(argv[i + 1]);
-            UecSrc::set_use_super_fast_increase(use_super_fast_increase);
+            LcpSrc::set_use_super_fast_increase(use_super_fast_increase);
             printf("FastIncreaseSuper: %d\n", use_super_fast_increase);
             i++;
         } else if (!strcmp(argv[i], "-gain_value_med_inc")) {
             gain_value_med_inc = std::stod(argv[i + 1]);
-            // UecSrc::set_gain_value_med_inc(gain_value_med_inc);
+            // LcpSrc::set_gain_value_med_inc(gain_value_med_inc);
             printf("GainValueMedIncrease: %f\n", gain_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-jitter_value_med_inc")) {
             jitter_value_med_inc = std::stod(argv[i + 1]);
-            // UecSrc::set_jitter_value_med_inc(jitter_value_med_inc);
+            // LcpSrc::set_jitter_value_med_inc(jitter_value_med_inc);
             printf("JitterValue: %f\n", jitter_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-delay_gain_value_med_inc")) {
             delay_gain_value_med_inc = std::stod(argv[i + 1]);
-            // UecSrc::set_delay_gain_value_med_inc(delay_gain_value_med_inc);
+            // LcpSrc::set_delay_gain_value_med_inc(delay_gain_value_med_inc);
             printf("DelayGainValue: %f\n", delay_gain_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-target_rtt_percentage_over_base")) {
             target_rtt_percentage_over_base = atoi(argv[i + 1]);
-            UecSrc::set_target_rtt_percentage_over_base(
+            LcpSrc::set_target_rtt_percentage_over_base(
                     target_rtt_percentage_over_base);
             printf("TargetRTT: %d\n", target_rtt_percentage_over_base);
             i++;
         } else if (!strcmp(argv[i], "-fast_drop_rtt")) {
-            UecSrc::set_fast_drop_rtt(atoi(argv[i + 1]));
+            LcpSrc::set_fast_drop_rtt(atoi(argv[i + 1]));
             i++;
         } else if (!strcmp(argv[i], "-y_gain")) {
             y_gain = std::stod(argv[i + 1]);
-            UecSrc::set_y_gain(y_gain);
+            LcpSrc::set_y_gain(y_gain);
             printf("YGain: %f\n", y_gain);
             i++;
         } else if (!strcmp(argv[i], "-x_gain")) {
             x_gain = std::stod(argv[i + 1]);
-            UecSrc::set_x_gain(x_gain);
+            LcpSrc::set_x_gain(x_gain);
             printf("XGain: %f\n", x_gain);
             i++;
         } else if (!strcmp(argv[i], "-z_gain")) {
             z_gain = std::stod(argv[i + 1]);
-            UecSrc::set_z_gain(z_gain);
+            LcpSrc::set_z_gain(z_gain);
             printf("ZGain: %f\n", z_gain);
             i++;
         } else if (!strcmp(argv[i], "-w_gain")) {
             w_gain = std::stod(argv[i + 1]);
-            UecSrc::set_w_gain(w_gain);
+            LcpSrc::set_w_gain(w_gain);
             printf("WGain: %f\n", w_gain);
             i++;
         } else if (!strcmp(argv[i], "-starting_cwnd_ratio")) {
@@ -326,7 +325,7 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-bonus_drop")) {
             bonus_drop = std::stod(argv[i + 1]);
-            UecSrc::set_bonus_drop(bonus_drop);
+            LcpSrc::set_bonus_drop(bonus_drop);
             printf("BonusDrop: %f\n", bonus_drop);
             i++;
         } else if (!strcmp(argv[i], "-phantom_in_series")) {
@@ -335,7 +334,7 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-drop_value_buffer")) {
             drop_value_buffer = std::stod(argv[i + 1]);
-            UecSrc::set_buffer_drop(drop_value_buffer);
+            LcpSrc::set_buffer_drop(drop_value_buffer);
             printf("BufferDrop: %f\n", drop_value_buffer);
             i++;
         } else if (!strcmp(argv[i], "-goal")) {
@@ -364,43 +363,92 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-queue_type")) {
             if (!strcmp(argv[i + 1], "composite")) {
                 queue_choice = COMPOSITE;
-                UecSrc::set_queue_type("composite");
+                LcpSrc::set_queue_type("composite");
             } else if (!strcmp(argv[i + 1], "composite_bts")) {
                 queue_choice = COMPOSITE_BTS;
-                UecSrc::set_queue_type("composite_bts");
+                LcpSrc::set_queue_type("composite_bts");
                 printf("Name Running: UEC BTS\n");
             }
             i++;
         } else if (!strcmp(argv[i], "-algorithm")) {
             if (!strcmp(argv[i + 1], "delayA")) {
-                UecSrc::set_alogirthm("delayA");
+                LcpSrc::set_alogirthm("delayA");
                 printf("Name Running: UEC Version A\n");
             } else if (!strcmp(argv[i + 1], "delayB")) {
-                UecSrc::set_alogirthm("delayB");
+                LcpSrc::set_alogirthm("delayB");
                 printf("Name Running: SMaRTT\n");
             } else if (!strcmp(argv[i + 1], "delayB_rtt")) {
-                UecSrc::set_alogirthm("delayB_rtt");
+                LcpSrc::set_alogirthm("delayB_rtt");
                 printf("Name Running: SMaRTT Per RTT\n");
             } else if (!strcmp(argv[i + 1], "delayC")) {
-                UecSrc::set_alogirthm("delayC");
+                LcpSrc::set_alogirthm("delayC");
             } else if (!strcmp(argv[i + 1], "delayD")) {
-                UecSrc::set_alogirthm("delayD");
+                LcpSrc::set_alogirthm("delayD");
                 printf("Name Running: STrack\n");
             } else if (!strcmp(argv[i + 1], "standard_trimming")) {
-                UecSrc::set_alogirthm("standard_trimming");
+                LcpSrc::set_alogirthm("standard_trimming");
                 printf("Name Running: UEC Version D\n");
             } else if (!strcmp(argv[i + 1], "rtt")) {
-                UecSrc::set_alogirthm("rtt");
+                LcpSrc::set_alogirthm("rtt");
                 printf("Name Running: SMaRTT RTT Only\n");
             } else if (!strcmp(argv[i + 1], "ecn")) {
-                UecSrc::set_alogirthm("ecn");
+                LcpSrc::set_alogirthm("ecn");
                 printf("Name Running: SMaRTT ECN Only Constant\n");
             } else if (!strcmp(argv[i + 1], "custom")) {
-                UecSrc::set_alogirthm("custom");
+                LcpSrc::set_alogirthm("custom");
                 printf("Name Running: SMaRTT ECN Only Variable\n");
-            }
+            } else if (!strcmp(argv[i + 1], "lcp")) {
+                LcpSrc::set_alogirthm("lcp");
+                printf("Name Running: LCP\n");
+            } else if (!strcmp(argv[i + 1], "lcp-gemini")) {
+                LcpSrc::set_alogirthm("lcp-gemini");
+                printf("Name Running: LCP Gemini\n");
+            } else {
+                printf("Unknown algorithm exiting...\n");
+                exit(-1);
+            } 
             i++;
-        } else {
+        } else if (!strcmp(argv[i], "-target-low-us")) {
+            TARGET_RTT_LOW = timeFromUs(atof(argv[i + 1]));
+            i++;
+        } else if (!strcmp(argv[i], "-target-high-us")) {
+            TARGET_RTT_HIGH = timeFromUs(atof(argv[i + 1]));
+            i++;
+        } else if (!strcmp(argv[i], "-baremetal-us")) {
+            BAREMETAL_RTT = timeFromUs(atof(argv[i + 1]));
+            i++;
+        } else if (!strcmp(argv[i], "-alpha")) {
+            LCP_ALPHA = atof(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-beta")) {
+            LCP_BETA = atof(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-gamma")) {
+            LCP_GAMMA = atof(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-delta")) {
+            LCP_DELTA = atoi(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-k")) {
+            LCP_K = atoi(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-pacing-bonus")) {
+            LCP_PACING_BONUS = atof(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-fast-increase-threshold")) {
+            LCP_FAST_INCREASE_THRESHOLD = atoi(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-no-qa")) {
+            LCP_USE_QUICK_ADAPT = false;
+        } else if (!strcmp(argv[i], "-no-fi")) {
+            LCP_USE_FAST_INCREASE = false;
+        } else if (!strcmp(argv[i], "-no-pacing")) {
+            LCP_USE_PACING = false;
+        } else if (!strcmp(argv[i], "-use-min")) {
+            LCP_USE_MIN_RTT = true;
+        }  else if (!strcmp(argv[i], "-use-ad")) {
+            LCP_USE_AGGRESSIVE_DECREASE = true;
+        }  else {
             printf("Called with %s\n", argv[i]);
             exit_error(argv[0]);
         }
@@ -409,6 +457,7 @@ int main(int argc, char **argv) {
     }
 
     SINGLE_PKT_TRASMISSION_TIME_MODERN = packet_size * 8 / (LINK_SPEED_MODERN);
+    // exit(1);
 
     // Initialize Seed, Logging and Other variables
     if (seed != -1) {
@@ -451,19 +500,67 @@ int main(int argc, char **argv) {
     uint64_t base_rtt_max_hops =
             (hops * LINK_DELAY_MODERN) +
             (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
-            (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
+            (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops) + 3898;
     uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
     if (queue_size_ratio == 0) {
         queuesize = bdp_local; // Equal to BDP if not other info
     } else {
         queuesize = bdp_local * queue_size_ratio;
     }
+    queuesize = bdp_local * 0.2;
 
-    UecSrc::setRouteStrategy(route_strategy);
-    UecSink::setRouteStrategy(route_strategy);
+    if (LCP_DELTA == 1) {
+        LCP_DELTA = bdp_local * 0.05;
+    }
 
-    UecSrc *uecSrc;
-    UecSink *uecSnk;
+    BAREMETAL_RTT = base_rtt_max_hops * 1000;
+    TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
+    TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
+
+    // LCP_GEMINI_BETA = 0.2;
+    // LCP_GEMINI_TARGET_QUEUEING_LATENCY = (LCP_GEMINI_BETA / (1.0 - LCP_GEMINI_BETA)) * BAREMETAL_RTT;
+
+    LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0.1 * BAREMETAL_RTT;
+    LCP_GEMINI_BETA = (double)LCP_GEMINI_TARGET_QUEUEING_LATENCY / ((double) LCP_GEMINI_TARGET_QUEUEING_LATENCY + (double) BAREMETAL_RTT);
+
+    double H = 1.2 * pow(10, -7);
+    cout << "Double of H: " << H * (double) bdp_local << endl;
+    LCP_GEMINI_H = max(min((H * (double) bdp_local), 5.0), 0.1) * (double) PKT_SIZE_MODERN;
+    if (LCP_GEMINI_H == 0) {
+        cout << "H is 0, raw value is: " << H * (double) bdp_local << " exiting..." << endl;
+        exit(-1);
+    }
+
+    cout << "==============================" << endl;
+    cout << "Link speed: " << LINK_SPEED_MODERN << " GBps" << endl;
+    cout << "Baremetal RTT: " << BAREMETAL_RTT / 1000000 << " us" << endl;
+    cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
+    cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
+    cout << "MSS: " << PKT_SIZE_MODERN << " Bytes" << endl;
+    cout << "BDP: " << bdp_local / 1000 << " KB" << endl;
+    cout << "Queue Size: " << queuesize << " Bytes" << endl;
+    cout << "Delta: " << LCP_DELTA << endl;
+    cout << "Beta: " << LCP_BETA << endl;
+    cout << "Alpha: " << LCP_ALPHA << endl;
+    cout << "Gamma: " << LCP_GAMMA << endl;
+    cout << "K: " << LCP_K << endl;
+    cout << "Fast Increase Threshold: " << LCP_FAST_INCREASE_THRESHOLD << endl;
+    cout << "Use Quick Adapt: " << LCP_USE_QUICK_ADAPT << endl;
+    cout << "Use Pacing: " << LCP_USE_PACING << endl;
+    cout << "Use Fast Increase: " << LCP_USE_FAST_INCREASE << endl;
+    cout << "Pacing Bonus: " << LCP_PACING_BONUS << endl;
+    cout << "Use Min RTT: " << LCP_USE_MIN_RTT << endl;
+    cout << "Use Aggressive Decrease: " << LCP_USE_AGGRESSIVE_DECREASE << endl;
+    cout << "Gemini Queueing Delay Threshold: " << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << " us" << endl;
+    cout << "Gemini Beta: " << LCP_GEMINI_BETA << endl;
+    cout << "Gemini H: " << LCP_GEMINI_H << endl;
+    cout << "==============================" << endl;
+
+    LcpSrc::setRouteStrategy(route_strategy);
+    LcpSink::setRouteStrategy(route_strategy);
+
+    LcpSrc *lcpSrc;
+    LcpSink *uecSnk;
 
     Route *routeout, *routein;
 
@@ -568,7 +665,7 @@ int main(int argc, char **argv) {
     // list <const Route*> routes;
 
     vector<connection *> *all_conns = conns->getAllConnections();
-    vector<UecSrc *> uec_srcs;
+    vector<LcpSrc *> uec_srcs;
 
     for (size_t c = 0; c < all_conns->size(); c++) {
         connection *crt = all_conns->at(c);
@@ -627,49 +724,49 @@ int main(int argc, char **argv) {
             actual_starting_cwnd = bdp_local * starting_cwnd_ratio;
         }
 
-        UecSrc::set_starting_cwnd(actual_starting_cwnd * 2);
+        LcpSrc::set_starting_cwnd(actual_starting_cwnd);
         printf("Setting CWND to %lu\n", actual_starting_cwnd);
 
         printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu\n",
                bdp_local, queuesize, actual_starting_cwnd);
 
-        uecSrc = new UecSrc(NULL, NULL, eventlist, rtt, bdp, 100,
+        lcpSrc = new LcpSrc(NULL, NULL, eventlist, rtt, bdp, 100,
                             myin->hop_count());
-        uecSrc->setReuse(1);
-        uecSrc->setIgnoreEcnAck(1);
-        uecSrc->setIgnoreEcnData(1);
-        uecSrc->setNumberEntropies(256);
-        uec_srcs.push_back(uecSrc);
-        uecSrc->set_dst(dest);
+        lcpSrc->setReuse(1);
+        lcpSrc->setIgnoreEcnAck(1);
+        lcpSrc->setIgnoreEcnData(1);
+        lcpSrc->setNumberEntropies(256);
+        uec_srcs.push_back(lcpSrc);
+        lcpSrc->set_dst(dest);
         printf("Reaching here\n");
         fflush(stdout);
         if (crt->flowid) {
-            uecSrc->set_flowid(crt->flowid);
+            lcpSrc->set_flowid(crt->flowid);
             assert(flowmap.find(crt->flowid) ==
                    flowmap.end()); // don't have dups
-            flowmap[crt->flowid] = uecSrc;
+            flowmap[crt->flowid] = lcpSrc;
         }
 
         if (crt->size > 0) {
-            uecSrc->setFlowSize(crt->size);
+            lcpSrc->setFlowSize(crt->size);
         }
 
         if (crt->trigger) {
             Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
-            trig->add_target(*uecSrc);
+            trig->add_target(*lcpSrc);
         }
         if (crt->send_done_trigger) {
             Trigger *trig =
                     conns->getTrigger(crt->send_done_trigger, eventlist);
-            uecSrc->set_end_trigger(*trig);
+            lcpSrc->set_end_trigger(*trig);
         }
 
-        uecSnk = new UecSink();
+        uecSnk = new LcpSink();
 
-        uecSrc->setName("uec_" + ntoa(src) + "_" + ntoa(dest));
+        lcpSrc->setName("uec_" + ntoa(src) + "_" + ntoa(dest));
 
         cout << "uec_" + ntoa(src) + "_" + ntoa(dest) << endl;
-        logfile.writeName(*uecSrc);
+        logfile.writeName(*lcpSrc);
 
         uecSnk->set_src(src);
 
@@ -681,7 +778,7 @@ int main(int argc, char **argv) {
             uecSnk->set_end_trigger(*trig);
         }
 
-        // uecRtxScanner->registerUec(*uecSrc);
+        // uecRtxScanner->registerUec(*lcpSrc);
 
         switch (route_strategy) {
         case ECMP_FIB:
@@ -706,8 +803,8 @@ int main(int argc, char **argv) {
                     top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]
                             ->getRemoteEndpoint());
 
-            uecSrc->connect(srctotor, dsttotor, *uecSnk, crt->start);
-            uecSrc->set_paths(number_entropies);
+            lcpSrc->connect(srctotor, dsttotor, *uecSnk, crt->start);
+            lcpSrc->set_paths(number_entropies);
             uecSnk->set_paths(number_entropies);
 
             // register src and snk to receive packets from their respective
@@ -715,21 +812,21 @@ int main(int argc, char **argv) {
             assert(top->switches_lp[top->HOST_POD_SWITCH(src)]);
             assert(top->switches_lp[top->HOST_POD_SWITCH(src)]);
             top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(
-                    src, uecSrc->flow_id(), uecSrc);
+                    src, lcpSrc->flow_id(), lcpSrc);
             top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(
-                    dest, uecSrc->flow_id(), uecSnk);
+                    dest, lcpSrc->flow_id(), uecSnk);
             break;
         }
         case SINGLE_PATH: {
             assert(route_strategy == SINGLE_PATH);
             int choice = rand() % net_paths[src][dest]->size();
             routeout = new Route(*(net_paths[src][dest]->at(choice)));
-            routeout->add_endpoints(uecSrc, uecSnk);
+            routeout->add_endpoints(lcpSrc, uecSnk);
 
             routein = new Route(
                     *top->get_bidir_paths(dest, src, false)->at(choice));
-            routein->add_endpoints(uecSnk, uecSrc);
-            uecSrc->connect(routeout, routein, *uecSnk, crt->start);
+            routein->add_endpoints(uecSnk, lcpSrc);
+            lcpSrc->connect(routeout, routein, *uecSnk, crt->start);
             break;
         }
         case NOT_SET: {

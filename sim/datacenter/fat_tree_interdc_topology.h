@@ -205,6 +205,7 @@ class FatTreeInterDCTopology : public Topology {
     uint32_t getOS() const { return _os; }
     uint32_t getOSStage1() const { return _os_ratio_stage_1; }
     uint32_t getNAGG() const { return NAGG; }
+    void set_queue_sizes(mem_b queuesize);
 
   private:
     map<Queue *, int> _link_usage;
@@ -214,7 +215,6 @@ class FatTreeInterDCTopology : public Topology {
     void set_linkspeeds(linkspeed_bps linkspeed);
     int64_t find_up_switch(Queue *queue);
     int64_t find_core_switch(Queue *queue);
-    void set_queue_sizes(mem_b queuesize);
     int64_t find_destination(Queue *queue);
     void set_params(uint32_t no_of_nodes);
     void set_custom_params(uint32_t no_of_nodes);
