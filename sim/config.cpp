@@ -152,6 +152,8 @@ void initializeLoggingFolders() {
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/target_rtt_low/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/target_rtt_high/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/baremetal_latency/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/params/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/cmd/");
 
     bool ret_val = std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/rtt");
@@ -183,6 +185,8 @@ void initializeLoggingFolders() {
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/target_rtt_low");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/target_rtt_high");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/baremetal_latency");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/params");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/cmd");
 }
 
 // Path

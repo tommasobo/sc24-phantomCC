@@ -694,8 +694,15 @@ int main(int argc, char **argv) {
 
     // Calculate Network Info
     int hops = 6; // hardcoded for now
-    uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
-                                 (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
+    // uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
+    //                              (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
+    // uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
+
+    uint64_t base_rtt_max_hops = (2 * (9 - 1) * (LINK_DELAY_MODERN + switch_latency / 1000)  +  // All DCN latencies.
+                                2 * (interdc_delay / 1000 + switch_latency / 1000)                  +  // InterDC latencies.
+                                9 * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
+                                9 * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
+
     uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
 
     if (queue_size_ratio == 0) {

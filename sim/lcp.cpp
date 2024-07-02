@@ -176,7 +176,7 @@ LcpSrc::~LcpSrc() {
         MyFile.close();
 
         // CWD
-        file_name = PROJECT_ROOT_PATH / ("sim/output/cwd/cwd" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("sim/output/cwd/cwd" + _name + std::to_string(tag) + ".txt");
         std::ofstream MyFileCWD(file_name, std::ios_base::app);
 
         for (const auto &p : _list_cwd) {
@@ -480,6 +480,36 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     cout << "Gemini H: " << LCP_GEMINI_H << endl;
     cout << "==============================" << endl;
 
+    // Write all of this to a file in csv.
+    std::string file_name = PROJECT_ROOT_PATH / ("sim/output/params/params" + _name + "_" + std::to_string(tag) + ".txt");
+    std::ofstream MyFile(file_name, std::ios_base::app);
+
+    MyFile << "Link speed (Gbps)," << LINK_SPEED_MODERN << std::endl;
+    MyFile << "Baremetal RTT (us)," << BAREMETAL_RTT / 1000000 << std::endl;
+    MyFile << "Target RTT Low (us)," << TARGET_RTT_LOW / 1000000 << std::endl;
+    MyFile << "Target RTT High (us)," << TARGET_RTT_HIGH / 1000000 << std::endl;
+    MyFile << "MSS (bytes)," << PKT_SIZE_MODERN << std::endl;
+    MyFile << "BDP (KB)," << _bdp / 1000 << std::endl;
+    MyFile << "Starting cwnd (bytes)," << starting_cwnd << std::endl;
+    MyFile << "Queue Size (bytes)," << _queue_size << std::endl;
+    MyFile << "Delta," << LCP_DELTA << std::endl;
+    MyFile << "Beta," << LCP_BETA << std::endl;
+    MyFile << "Alpha," << LCP_ALPHA << std::endl;
+    MyFile << "Gamma," << LCP_GAMMA << std::endl;
+    MyFile << "K," << LCP_K << std::endl;
+    MyFile << "Fast Increase Threshold," << LCP_FAST_INCREASE_THRESHOLD << std::endl;
+    MyFile << "Use Quick Adapt," << LCP_USE_QUICK_ADAPT << std::endl;
+    MyFile << "Use Pacing," << LCP_USE_PACING << std::endl;
+    MyFile << "Use Fast Increase," << LCP_USE_FAST_INCREASE << std::endl;
+    MyFile << "Pacing Bonus," << LCP_PACING_BONUS << std::endl;
+    MyFile << "Use Min RTT," << LCP_USE_MIN_RTT << std::endl;
+    MyFile << "Use Aggressive Decrease," << LCP_USE_AGGRESSIVE_DECREASE << std::endl;
+    MyFile << "Gemini Queueing Delay Threshold (us)," << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << std::endl;
+    MyFile << "Gemini Beta," << LCP_GEMINI_BETA << std::endl;
+    MyFile << "Gemini H," << LCP_GEMINI_H << std::endl;
+
+    MyFile.close();
+
 
     // _queue_size = _bdp; // Temporary
     initial_x_gain = x_gain;
@@ -576,6 +606,7 @@ void LcpSrc::mark_received(UecAck &pkt) {
             --_nack_rtx_pending;
         }
         _last_acked = seqno + _mss - 1;
+        _list_acked_bytes.push_back(std::make_pair(eventlist().now() / 1000, _last_acked));
         if (_enableDistanceBasedRtx) {
             bool trigger = true;
             // TODO: this could be optimized with counters or bitsets,
