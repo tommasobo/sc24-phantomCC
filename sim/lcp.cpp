@@ -353,8 +353,8 @@ LcpSrc::~LcpSrc() {
 
 void LcpSrc::update_pacing_delay() {
     bool is_time_to_update = (last_pac_change == 0) || ((eventlist().now() - last_pac_change) > _base_rtt / 20);
-    cout << "PaceDelayChange: Is it time to update? " << is_time_to_update << " at " << GLOBAL_TIME / 1000 << endl;
-    cout << "PaceDelayChange: Last change was " << eventlist().now() - last_pac_change << " ago at " << GLOBAL_TIME / 1000 << endl;
+    // cout << "PaceDelayChange: Is it time to update? " << is_time_to_update << " at " << GLOBAL_TIME / 1000 << endl;
+    // cout << "PaceDelayChange: Last change was " << eventlist().now() - last_pac_change << " ago at " << GLOBAL_TIME / 1000 << endl;
     if (LCP_USE_PACING && is_time_to_update) {
         pacing_delay = (((double)_mss) / (((double)_cwnd) / (_base_rtt / 1000.0))) * (1.0 - LCP_PACING_BONUS);
         cout << "PaceDelayChange: Setting the pacing delay to: " << pacing_delay << " at " << GLOBAL_TIME / 1000
@@ -378,7 +378,7 @@ void LcpSrc::doNextEvent() { startflow(); }
 void LcpSrc::set_end_trigger(Trigger &end_trigger) { _end_trigger = &end_trigger; }
 
 // Update Network Parameters
-void LcpSrc::updateParams(uint64_t switch_latency_ns) {
+void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) {
     if (src_dc != dest_dc) {
         _hop_count = 9;
         _base_rtt = (2 * (_hop_count - 1) * (LINK_DELAY_MODERN + switch_latency_ns)  +  // All DCN latencies.
@@ -441,7 +441,20 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     }
     BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
-    TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
+    float queue_latency_ns = (float) queuesize_bytes * 8 / (float) LINK_SPEED_MODERN;
+    float extra_packet_latency_ns = (2.0 * (float)_mss * 8.0) / (float) LINK_SPEED_MODERN;
+    TARGET_RTT_HIGH = (queue_latency_ns + extra_packet_latency_ns) * 1000.0 + BAREMETAL_RTT;
+    cout << "TARGET_RTT_HIGH: " << TARGET_RTT_HIGH << endl;
+    cout << "    queue_latency_ns: " << queue_latency_ns << endl;
+    cout << "    extra_packet_latency_ns: " << extra_packet_latency_ns << endl;
+    cout << "    baremetal_rtt: " << BAREMETAL_RTT << endl;
+    cout << "    queuesize_bytes: " << queuesize_bytes << endl;
+    cout << "    LINK_SPEED_MODERN: " << LINK_SPEED_MODERN << endl;
+    // TARGET_RTT_HIGH = (((queuesize_bytes * 8) / (LINK_SPEED_MODERN)) + // Max queueing latency.
+    //                     (2 * _mss * 8) / (LINK_SPEED_MODERN)) * 1000 +                       // Few packets
+    //                     BAREMETAL_RTT; // Base RTT
+
+    assert(TARGET_RTT_HIGH > TARGET_RTT_LOW);
 
     LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0.1 * BAREMETAL_RTT;
     LCP_GEMINI_BETA = (double)LCP_GEMINI_TARGET_QUEUEING_LATENCY / ((double) LCP_GEMINI_TARGET_QUEUEING_LATENCY + (double) BAREMETAL_RTT);
@@ -491,7 +504,7 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns) {
     MyFile << "MSS (bytes)," << PKT_SIZE_MODERN << std::endl;
     MyFile << "BDP (KB)," << _bdp / 1000 << std::endl;
     MyFile << "Starting cwnd (bytes)," << starting_cwnd << std::endl;
-    MyFile << "Queue Size (bytes)," << _queue_size << std::endl;
+    MyFile << "Queue Size (bytes)," << queuesize_bytes << std::endl;
     MyFile << "Delta," << LCP_DELTA << std::endl;
     MyFile << "Beta," << LCP_BETA << std::endl;
     MyFile << "Alpha," << LCP_ALPHA << std::endl;
@@ -1437,15 +1450,21 @@ void LcpSrc::fast_increase() {
 void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno) {
 
     if (algorithm_type == "lcp") {
-        if (_current_rtt_ewma == timeFromMs(0)) {
+        // if (_current_rtt_ewma == timeFromMs(0)) {
+        //     _current_rtt_ewma = rtt;
+        // } else {
+        //     if (LCP_USE_MIN_RTT) {
+        //         _current_rtt_ewma = min(_current_rtt_ewma, rtt);
+        //     } else {
+        //         _current_rtt_ewma = _current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt;
+        //     }
+        // }
+        if (rtt >= TARGET_RTT_HIGH) {
             _current_rtt_ewma = rtt;
         } else {
-            if (LCP_USE_MIN_RTT) {
-                _current_rtt_ewma = min(_current_rtt_ewma, rtt);
-            } else {
-                _current_rtt_ewma = _current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt;
-            }
+            _current_rtt_ewma = min((simtime_picosec) (_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt), rtt);
         }
+
         // printf("\t_current_rtt_ewma: %d _previous_rtt_ewma: %d rtt: %d alpha: %f curackno: %lu\n", _current_rtt_ewma, _previous_rtt_ewma, rtt, LCP_ALPHA, ackno);
 
         if (_current_rtt_ewma > TARGET_RTT_LOW) {
@@ -1491,38 +1510,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             if (_current_rtt_ewma < TARGET_RTT_LOW) {
                 _cwnd += (uint32_t)LCP_DELTA;
                 cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
-            } else if (_current_rtt_ewma > 2 * TARGET_RTT_HIGH) {
-                if (LCP_USE_QUICK_ADAPT) {
-                    quick_adapt_drop();
-                } else {
-                    double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-                    double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-                    double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-                    double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-                    _cwnd *= (1.0 - total_factor);
-                }
-                cout << "    CWND change: " << nodename() << " more than 2x target high, go from " << cwnd_before << " to " << _cwnd << endl;
-            } else if (_current_rtt_ewma > TARGET_RTT_HIGH && abs(gradient) < 0.01) {
-                if (LCP_USE_AGGRESSIVE_DECREASE) {
-                    // Target RTT is high and the gradient is near 0. Aggressive decrease.
-                    _cwnd *= 0.5;
-                    cout << "    CWND change: " << nodename() << " more than target high and gradient 0 go from " << cwnd_before << " to " << _cwnd << endl;
-                } else {
-                    double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-                    double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-                    double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-                    double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-                    _cwnd *= (1.0 - total_factor);
-                    cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
-                }
-            } 
-            else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-                double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
-                double latency_factor = LCP_BETA * (1.0 - latency_ratio);
-                double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
-                double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
-                _cwnd *= (1.0 - total_factor);
-                cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
+            } else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
+                _cwnd *= 0.5;
             } else if (gradient <= 0.0) {
                 _cwnd += _mss;
                 cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;

@@ -698,10 +698,10 @@ int main(int argc, char **argv) {
     //                              (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
     // uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
 
-    uint64_t base_rtt_max_hops = (2 * (9 - 1) * (LINK_DELAY_MODERN + switch_latency / 1000)  +  // All DCN latencies.
+    uint64_t base_rtt_max_hops = 2 * (9 - 1) * (LINK_DELAY_MODERN + switch_latency / 1000)  +  // All DCN latencies.
                                 2 * (interdc_delay / 1000 + switch_latency / 1000)                  +  // InterDC latencies.
                                 9 * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
-                                9 * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
+                                9 * 64 * 8 / LINK_SPEED_MODERN;                    // Ack transmission delays. 
 
     uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
 
@@ -977,7 +977,7 @@ int main(int argc, char **argv) {
                     int idx_dc_to = top_dc->get_dc_id(dest);
                     lcpSrc->src_dc = top_dc->get_dc_id(src);
                     lcpSrc->dest_dc = top_dc->get_dc_id(dest);
-                    lcpSrc->updateParams(switch_latency / 1000);
+                    lcpSrc->updateParams(switch_latency / 1000, queuesize);
 
                     printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
 
