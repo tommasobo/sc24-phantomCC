@@ -1331,6 +1331,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
         send_packets();
         return; // TODO: if no further code, this can be removed
     }
+    _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
 }
 
 uint64_t LcpSrc::get_unacked() {
@@ -1478,6 +1479,29 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
             printf("Doing fi\n");
             fast_increase();
+        } else {
+            int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
+            cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
+
+            uint32_t cwnd_before = _cwnd;
+
+            // Translate rtt_change into a rate.
+            double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+            cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
+            cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
+            if (_current_rtt_ewma < TARGET_RTT_LOW) {
+                _cwnd += ((float)LCP_DELTA)/_cwnd;
+                cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
+            } else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
+                _cwnd -= _cwnd/(2.0 * _cwnd);
+            } else if (gradient <= 0.0) {
+                _cwnd += ((float)_mss)/_cwnd;
+                cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+            } else {
+                double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+                _cwnd -= (_cwnd - _cwnd * (1 - gradient_change))/_cwnd;
+                cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
+            }
         }
 
         // _bytes_receieved_since_last_epoch += _mss;
@@ -1502,28 +1526,28 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             if (_previous_rtt_ewma == timeFromMs(0)) {
                 _previous_rtt_ewma = _current_rtt_ewma;
             }
-            int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
-            cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
+            // int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
+            // cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
 
-            uint32_t cwnd_before = _cwnd;
+            // uint32_t cwnd_before = _cwnd;
 
-            // Translate rtt_change into a rate.
-            double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-            cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-            cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-            if (_current_rtt_ewma < TARGET_RTT_LOW) {
-                _cwnd += (uint32_t)LCP_DELTA;
-                cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
-            } else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-                _cwnd *= 0.5;
-            } else if (gradient <= 0.0) {
-                _cwnd += _mss;
-                cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
-            } else {
-                double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-                _cwnd *= (1 - gradient_change);
-                cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
-            }
+            // // Translate rtt_change into a rate.
+            // double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+            // cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
+            // cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
+            // if (_current_rtt_ewma < TARGET_RTT_LOW) {
+            //     _cwnd += (uint32_t)LCP_DELTA;
+            //     cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
+            // } else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
+            //     _cwnd *= 0.5;
+            // } else if (gradient <= 0.0) {
+            //     _cwnd += _mss;
+            //     cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+            // } else {
+            //     double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+            //     _cwnd *= (1 - gradient_change);
+            //     cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
+            // }
         
             // Reset State.
             _next_measurement_seq_no = _highest_sent + 1;
@@ -1563,6 +1587,35 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                 _current_rtt_ewma = timeFromMs(0);
             }
         }
+
+        if (COLLECT_DATA) {
+            std::string file_name =
+                    PROJECT_ROOT_PATH /
+                    ("sim/output/current_rtt_ewma/current_rtt_ewma_" + _name + "_" +
+                                    std::to_string(tag) + ".txt");
+            std::ofstream MyFile(file_name, std::ios_base::app);
+            MyFile << eventlist().now() / 1000 << "," << _current_rtt_ewma / 1000 << std::endl;
+            MyFile.close();
+
+            file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low_" + _name + "_" +
+                                    std::to_string(tag) + ".txt");
+            std::ofstream MyFile2(file_name, std::ios_base::app);
+            MyFile2 << eventlist().now() / 1000 << "," << TARGET_RTT_LOW /1000 << std::endl;
+            MyFile2.close();
+
+            file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high_" + _name + "_" +
+                                    std::to_string(tag) + ".txt");
+            std::ofstream MyFile3(file_name, std::ios_base::app);
+            MyFile3 << eventlist().now() / 1000 << "," << TARGET_RTT_HIGH / 1000 << std::endl;
+            MyFile3.close();
+
+            file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency_" + _name + "_" +
+                                    std::to_string(tag) + ".txt");
+            std::ofstream MyFile4(file_name, std::ios_base::app);
+            MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
+            MyFile4.close();
+        }
+
     } else if (algorithm_type == "lcp-gemini") {
         if (_current_rtt_measurement == timeFromMs(0)) {
             _current_rtt_measurement = rtt;

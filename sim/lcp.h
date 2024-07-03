@@ -181,7 +181,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _pulls_received;
     uint64_t _implicit_pulls;
     uint64_t _bounces_received;
-    uint32_t _cwnd;
+    float _cwnd;
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
     uint32_t saved_acked_bytes = 0;
