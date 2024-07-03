@@ -435,7 +435,6 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-explicit_starting_buffer")) {
             explicit_starting_buffer = atoi(argv[i + 1]);
             printf("StartingBufferForced: %d\n", explicit_starting_buffer);
-            explicit_bdp = explicit_starting_buffer;
             i++;
         } else if (!strcmp(argv[i], "-explicit_base_rtt")) {
             explicit_base_rtt = ((uint64_t)atoi(argv[i + 1])) * 1000;

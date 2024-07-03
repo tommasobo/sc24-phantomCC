@@ -1462,7 +1462,11 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         if (rtt >= TARGET_RTT_HIGH) {
             _current_rtt_ewma = rtt;
         } else {
-            _current_rtt_ewma = min((simtime_picosec) (_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt), rtt);
+            if (_current_rtt_ewma == 0) {
+                _current_rtt_ewma = rtt;
+            } else {
+                _current_rtt_ewma = min((simtime_picosec) (_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt), rtt);
+            }
         }
 
         // printf("\t_current_rtt_ewma: %d _previous_rtt_ewma: %d rtt: %d alpha: %f curackno: %lu\n", _current_rtt_ewma, _previous_rtt_ewma, rtt, LCP_ALPHA, ackno);

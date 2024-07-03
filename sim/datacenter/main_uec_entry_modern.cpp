@@ -602,9 +602,10 @@ int main(int argc, char **argv) {
                 exit(0);
             }
             i++;
-        } else
+        } else {
+            cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
-
+        }
         i++;
     }
 
