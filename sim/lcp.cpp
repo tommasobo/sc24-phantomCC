@@ -1295,6 +1295,14 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
         cout << "Flow " << nodename() << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
              << endl;
 
+        // FCT.
+        auto fct_file_name = PROJECT_ROOT_PATH / ("sim/output/fct/fct" + _name + std::to_string(tag) + ".txt");
+        std::ofstream MyFileFCT(fct_file_name, std::ios_base::app);
+
+        MyFileFCT << timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time) << std::endl;
+
+        MyFileFCT.close();
+
         printf("Flow Completion time is %f - Flow Finishing Time %lu - Flow "
                "Start Time %lu - Size Finished Flow %lu - From %d - To %d\n",
                timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time), eventlist().now(), _flow_start_time,
