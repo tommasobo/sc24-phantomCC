@@ -507,7 +507,6 @@ int main(int argc, char **argv) {
     } else {
         queuesize = bdp_local * queue_size_ratio;
     }
-    queuesize = bdp_local * 0.2;
 
     if (LCP_DELTA == 1) {
         LCP_DELTA = bdp_local * 0.05;
@@ -736,6 +735,7 @@ int main(int argc, char **argv) {
         lcpSrc->setIgnoreEcnAck(1);
         lcpSrc->setIgnoreEcnData(1);
         lcpSrc->setNumberEntropies(256);
+        lcpSrc->updateParams(switch_latency / 1000, queuesize);
         uec_srcs.push_back(lcpSrc);
         lcpSrc->set_dst(dest);
         printf("Reaching here\n");

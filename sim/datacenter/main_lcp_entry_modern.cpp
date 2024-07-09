@@ -160,7 +160,7 @@ int main(int argc, char **argv) {
     bool topology_normal = true;
     simtime_picosec interdc_delay = 0;
     uint64_t max_queue_size = 0;
-    double def_end_time = 0.1;
+    double def_end_time = 0.5;
     int num_periods = 1;
 
     int i = 1;

@@ -442,8 +442,8 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) 
     BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
     float queue_latency_ns = (float) queuesize_bytes * 8 / (float) LINK_SPEED_MODERN;
-    float extra_packet_latency_ns = (2.0 * (float)_mss * 8.0) / (float) LINK_SPEED_MODERN;
-    TARGET_RTT_HIGH = (queue_latency_ns + extra_packet_latency_ns) * 1000.0 + BAREMETAL_RTT;
+    float extra_packet_latency_ns = (5.0 * (float)_mss * 8.0) / (float) LINK_SPEED_MODERN;
+    TARGET_RTT_HIGH = (queue_latency_ns - extra_packet_latency_ns) * 1000.0 + BAREMETAL_RTT;
     cout << "TARGET_RTT_HIGH: " << TARGET_RTT_HIGH << endl;
     cout << "    queue_latency_ns: " << queue_latency_ns << endl;
     cout << "    extra_packet_latency_ns: " << extra_packet_latency_ns << endl;
@@ -503,6 +503,8 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) 
     MyFile << "Target RTT High (us)," << TARGET_RTT_HIGH / 1000000 << std::endl;
     MyFile << "MSS (bytes)," << PKT_SIZE_MODERN << std::endl;
     MyFile << "BDP (KB)," << _bdp / 1000 << std::endl;
+    float max_queueing_latency_us = ((float) (queuesize_bytes * 8) / (float) LINK_SPEED_MODERN) / 1000.0;
+    MyFile << "Max Queueing Latency (us)," << max_queueing_latency_us << std::endl;
     MyFile << "Starting cwnd (bytes)," << starting_cwnd << std::endl;
     MyFile << "Queue Size (bytes)," << queuesize_bytes << std::endl;
     MyFile << "Delta," << LCP_DELTA << std::endl;
@@ -952,17 +954,17 @@ void LcpSrc::processNack(UecNack &pkt) {
     //     reduce_cwnd(uint64_t(_mss * decrease_on_nack));
     // }
 
-    if (use_fast_drop) {
-        if (count_received >= ignore_for) {
-            if (eventlist().now() > next_qa) {
-                need_quick_adapt = true;
-                quick_adapt(true);
-            }
-            if (generic_pacer != NULL) {
-                generic_pacer->cancel();
-            }
-        }
-    }
+    // if (use_fast_drop) {
+    //     if (count_received >= ignore_for) {
+    //         if (eventlist().now() > next_qa) {
+    //             need_quick_adapt = true;
+    //             quick_adapt(true);
+    //         }
+    //         if (generic_pacer != NULL) {
+    //             generic_pacer->cancel();
+    //         }
+    //     }
+    // }
 
     check_limits_cwnd();
 
@@ -1532,6 +1534,54 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                 _cwnd *= (1 - gradient_change);
                 cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
             }
+
+            // // Translate rtt_change into a rate.
+            // double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+            // cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
+            // cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
+            // if (_current_rtt_ewma < TARGET_RTT_LOW) {
+            //     _cwnd += (uint32_t)LCP_DELTA;
+            //     cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
+            // } else if (_current_rtt_ewma > 2 * TARGET_RTT_HIGH) {
+            //     if (LCP_USE_QUICK_ADAPT) {
+            //         quick_adapt_drop();
+            //     } else {
+            //         double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
+            //         double latency_factor = LCP_BETA * (1.0 - latency_ratio);
+            //         double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
+            //         double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
+            //         _cwnd *= (1.0 - total_factor);
+            //     }
+            //     cout << "    CWND change: " << nodename() << " more than 2x target high, go from " << cwnd_before << " to " << _cwnd << endl;
+            // } else if (_current_rtt_ewma > TARGET_RTT_HIGH && abs(gradient) < 0.01) {
+            //     if (LCP_USE_AGGRESSIVE_DECREASE) {
+            //         // Target RTT is high and the gradient is near 0. Aggressive decrease.
+            //         _cwnd *= 0.5;
+            //         cout << "    CWND change: " << nodename() << " more than target high and gradient 0 go from " << cwnd_before << " to " << _cwnd << endl;
+            //     } else {
+            //         double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
+            //         double latency_factor = LCP_BETA * (1.0 - latency_ratio);
+            //         double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
+            //         double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
+            //         _cwnd *= (1.0 - total_factor);
+            //         cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
+            //     }
+            // } 
+            // else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
+            //     double latency_ratio = ((double)TARGET_RTT_HIGH) / ((double) _current_rtt_ewma);
+            //     double latency_factor = LCP_BETA * (1.0 - latency_ratio);
+            //     double gradient_factor = min(max(-1.0, gradient), 0.0) * LCP_GAMMA;
+            //     double total_factor = min(max(-1.0, latency_factor + gradient_factor), 1.0);
+            //     _cwnd *= (1.0 - total_factor);
+            //     cout << "    CWND change: " << nodename() << " greater than all, go from " << cwnd_before << " to " << _cwnd << " latency factor: " << latency_factor << " gradient factor: " << gradient_factor << " total factor: " << total_factor << endl;
+            // } else if (gradient <= 0.0) {
+            //     _cwnd += _mss;
+            //     cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+            // } else {
+            //     double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+            //     _cwnd *= (1 - gradient_change);
+            //     cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
+            // }
         
             // Reset State.
             _next_measurement_seq_no = _highest_sent + 1;
