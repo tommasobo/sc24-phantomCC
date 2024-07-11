@@ -887,8 +887,10 @@ int main(int argc, char **argv) {
         map<flowid_t, TriggerTarget *> flowmap;
         vector<connection *> *all_conns = conns->getAllConnections();
         vector<LcpSrc *> uec_srcs;
+        vector<LcpEpochAgent *> uec_agents;
         LcpSrc *lcpSrc;
         LcpSink *lcpSink;
+        LcpEpochAgent *lcpEpochAgent;
 
         for (size_t c = 0; c < all_conns->size(); c++) {
             connection *crt = all_conns->at(c);
@@ -915,6 +917,9 @@ int main(int argc, char **argv) {
 
             lcpSrc->setNumberEntropies(256);
             uec_srcs.push_back(lcpSrc);
+
+            lcpEpochAgent = new LcpEpochAgent(eventlist, lcpSrc);
+            uec_agents.push_back(lcpEpochAgent);
             lcpSrc->set_dst(dest);
             printf("Reaching here\n");
             if (crt->flowid) {
@@ -952,6 +957,7 @@ int main(int argc, char **argv) {
                 lcpSink->set_end_trigger(*trig);
             }
 
+            // lcpEpochAgent->doNextEvent();
             // uecRtxScanner->registerUec(*lcpSrc);
 
             switch (route_strategy) {

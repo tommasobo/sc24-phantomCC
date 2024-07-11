@@ -167,6 +167,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
 
     void track_sending_rate();
     void track_ecn_rate();
+    void check_limits_cwnd();
+    void quick_adapt(bool);
 
     Trigger *_end_trigger = 0;
     // should really be private, but loggers want to see:
@@ -328,10 +330,12 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _next_window_seq_no;
     simtime_picosec _current_rtt_measurement;
 
+    uint16_t _mss;
+    bool _flow_finished = false;
+
   private:
     uint32_t _unacked;
     uint32_t _effcwnd;
-    uint16_t _mss;
     uint64_t _flow_size;
     uint64_t _rtt;
     uint64_t _rto;
@@ -341,7 +345,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint16_t _crt_path = 0;
     uint32_t target_window;
     // LogSimInterface *_lgs;
-    bool _flow_finished = false;
 
     bool _rtx_timeout_pending;
     bool _rtx_pending;
@@ -483,7 +486,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, double>> list_sending_rate;
 
     void send_packets();
-    void quick_adapt(bool);
     uint64_t get_unacked();
 
     void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno);
@@ -507,7 +509,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     void processBts(UecPacket *nack);
     void simulateTrimEvent(UecAck &nack);
     void reduce_unacked(uint64_t amount);
-    void check_limits_cwnd();
     void apply_timeout_penalty();
     void update_pacing_delay();
     void quick_adapt_drop();
@@ -572,6 +573,18 @@ class LcpRtxTimerScanner : public EventSource {
     simtime_picosec _lastScan;
     typedef list<LcpSrc *> lcps_t;
     lcps_t _lcps;
+};
+
+
+class LcpEpochAgent : public EventSource {
+  public:
+    LcpEpochAgent(EventList &eventlist, LcpSrc *flow);
+    void doNextEvent();
+    void registerLcp(LcpSrc &LcpSrc);
+
+  private:
+    LcpSrc *flow;
+    simtime_picosec _next_epoch_time;
 };
 
 #endif
