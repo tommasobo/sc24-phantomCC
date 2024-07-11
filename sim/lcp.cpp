@@ -185,6 +185,46 @@ LcpSrc::~LcpSrc() {
 
         MyFileCWD.close();
 
+        // CURRENT RTT EWMA.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/current_rtt_ewma/current_rtt_ewma" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileRTTEWMA(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_current_rtt_ewma) {
+            MyFileRTTEWMA << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileRTTEWMA.close();
+
+        // TARGET RTT LOW.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileTargetRTTLow(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_target_rtt_low) {
+            MyFileTargetRTTLow << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileTargetRTTLow.close();
+
+        // TARGET RTT HIGH.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileTargetRTTHigh(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_target_rtt_high) {
+            MyFileTargetRTTHigh << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileTargetRTTHigh.close();
+
+        // BAREMETAL RTT.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_rtt/baremetal_rtt" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileBaremetalRTT(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_baremetal_latency) {
+            MyFileBaremetalRTT << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileBaremetalRTT.close();
+
         // Unacked
         file_name = PROJECT_ROOT_PATH / ("sim/output/unacked/unacked" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileUnack(file_name, std::ios_base::app);
@@ -381,8 +421,8 @@ void LcpSrc::set_end_trigger(Trigger &end_trigger) { _end_trigger = &end_trigger
 void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) {
     if (src_dc != dest_dc) {
         _hop_count = 9;
-        _base_rtt = (2 * (_hop_count - 1) * (LINK_DELAY_MODERN + switch_latency_ns)  +  // All DCN latencies.
-                    2 * (_interdc_delay / 1000 + switch_latency_ns)                  +  // InterDC latencies.
+        _base_rtt = (2 * (_hop_count - 1) * (LINK_DELAY_MODERN)  +  // All DCN latencies.
+                    2 * (_interdc_delay / 1000)                  +  // InterDC latencies.
                     _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
                     _hop_count * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
                     
@@ -1484,85 +1524,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             fast_increase();
         }
 
-        // _bytes_receieved_since_last_epoch += _mss;
-
-        cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
-
-        if (eventlist().now() >= _time_of_next_epoch) {
-            // cout << "TimeEpoch time: " << eventlist().now() / 1000000 << "  ack sequence number: " << ackno << " next measurement sequence number: " << _next_measurement_seq_no << " highest sent seq no: " << _highest_sent << " abdul'sfix for measurement: " << _highest_sent + 1 << " cwnd: " << _cwnd << endl;
-            // quick_adapt(false);
-            // _time_of_next_epoch = eventlist().now() + TARGET_RTT_LOW;
-
-            // if (_current_rtt_ewma < TARGET_RTT_LOW) {
-            //     _consecutive_good_epochs++;
-            // } else {
-            //     _consecutive_good_epochs = 0;
-            // }
-
-            // if (_previous_rtt_ewma == timeFromMs(0)) {
-            //     _previous_rtt_ewma = _current_rtt_ewma;
-            // }
-            // int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
-            // cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
-
-            // uint32_t cwnd_before = _cwnd;
-
-            // // Translate rtt_change into a rate.
-            // double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-            // cout << "CWND change: " << nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-            // cout << "    _current_rtt_ewma: " << _current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-            // if (_current_rtt_ewma < TARGET_RTT_LOW) {
-            //     _cwnd += (uint32_t)LCP_DELTA;
-            //     cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
-            // } else if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-            //     _cwnd *= 0.5;
-            // } else if (gradient <= 0.0) {
-            //     _cwnd += _mss;
-            //     cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
-            // } else {
-            //     double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-            //     _cwnd *= (1 - gradient_change);
-            //     cout << "    CWND change: " << nodename() << " between with positive gradient go from " << cwnd_before << " to " << _cwnd << " gradient_change: " << gradient_change << endl;
-            // }
-        
-            // // Reset State.
-            // cout << "DEBUGMSGEPOCH: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ack_causing_epoch: " << ackno << " next_seq_no: " << _next_measurement_seq_no << endl;
-            // _previous_rtt_ewma = _current_rtt_ewma;
-
-            // check_limits_cwnd();
-
-            // if (COLLECT_DATA) {
-            //     std::string file_name =
-            //             PROJECT_ROOT_PATH /
-            //             ("sim/output/current_rtt_ewma/current_rtt_ewma" + _name + "_" +
-            //                             std::to_string(tag) + ".txt");
-            //     std::ofstream MyFile(file_name, std::ios_base::app);
-            //     MyFile << eventlist().now() / 1000 << "," << _current_rtt_ewma / 1000 << std::endl;
-            //     MyFile.close();
-
-            //     file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low" + _name + "_" +
-            //                             std::to_string(tag) + ".txt");
-            //     std::ofstream MyFile2(file_name, std::ios_base::app);
-            //     MyFile2 << eventlist().now() / 1000 << "," << TARGET_RTT_LOW /1000 << std::endl;
-            //     MyFile2.close();
-
-            //     file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high" + _name + "_" +
-            //                             std::to_string(tag) + ".txt");
-            //     std::ofstream MyFile3(file_name, std::ios_base::app);
-            //     MyFile3 << eventlist().now() / 1000 << "," << TARGET_RTT_HIGH / 1000 << std::endl;
-            //     MyFile3.close();
-
-            //     file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency" + _name + "_" +
-            //                             std::to_string(tag) + ".txt");
-            //     std::ofstream MyFile4(file_name, std::ios_base::app);
-            //     MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
-            //     MyFile4.close();
-            // }
-
-            // if (LCP_USE_MIN_RTT) {
-            //     _current_rtt_ewma = timeFromMs(0);
-            // }
-        }
+        // cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
     } else if (algorithm_type == "lcp-gemini") {
         if (_current_rtt_measurement == timeFromMs(0)) {
             _current_rtt_measurement = rtt;
@@ -1818,7 +1780,7 @@ void LcpSrc::send_packets() {
         uint32_t service_time = q->serviceTime(*p);
         _sent_packets.push_back(LcpSentPacket(eventlist().now() + service_time + _rto, p->seqno(), false, false, false));
 
-        cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
+        // cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
 
         if (generic_pacer != NULL && use_pacing) {
             generic_pacer->just_sent();
@@ -2044,7 +2006,7 @@ bool LcpSrc::resend_packet(std::size_t idx) {
     }
     sent_bytes_previous_window += _mss;
 
-    cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
+    // cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
     return true;
 }
 
@@ -2381,7 +2343,9 @@ LcpEpochAgent::LcpEpochAgent(EventList &event_list, LcpSrc *flow)
 }
 
 void LcpEpochAgent::doNextEvent() {
-    if (flow->_highest_sent > 0) {
+    // if (flow->_flow_start_time != 0) {
+    // if (flow->_flow_start_time != 0 && eventlist().now() - flow->_flow_start_time >= TARGET_RTT_LOW) {
+    if (flow->_highest_sent > 0 && flow->count_total_ack > 0) {
         // First make the window adjustment.
         cout << "TimeEpoch time: " << eventlist().now() / 1000000 << " cwnd: " << flow->_cwnd << endl;
         flow->quick_adapt(false);
@@ -2419,37 +2383,15 @@ void LcpEpochAgent::doNextEvent() {
         }
 
         // Reset State.
-        cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
+        // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
         flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
-
         flow->check_limits_cwnd();
 
         if (COLLECT_DATA) {
-            std::string file_name =
-                    PROJECT_ROOT_PATH /
-                    ("sim/output/current_rtt_ewma/current_rtt_ewma" + flow->_name + "_" +
-                                    std::to_string(flow->tag) + ".txt");
-            std::ofstream MyFile(file_name, std::ios_base::app);
-            MyFile << eventlist().now() / 1000 << "," << flow->_current_rtt_ewma / 1000 << std::endl;
-            MyFile.close();
-
-            file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low" + flow->_name + "_" +
-                                    std::to_string(flow->tag) + ".txt");
-            std::ofstream MyFile2(file_name, std::ios_base::app);
-            MyFile2 << eventlist().now() / 1000 << "," << TARGET_RTT_LOW /1000 << std::endl;
-            MyFile2.close();
-
-            file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high" + flow->_name + "_" +
-                                    std::to_string(flow->tag) + ".txt");
-            std::ofstream MyFile3(file_name, std::ios_base::app);
-            MyFile3 << eventlist().now() / 1000 << "," << TARGET_RTT_HIGH / 1000 << std::endl;
-            MyFile3.close();
-
-            file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency" + flow->_name + "_" +
-                                    std::to_string(flow->tag) + ".txt");
-            std::ofstream MyFile4(file_name, std::ios_base::app);
-            MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
-            MyFile4.close();
+            flow->_list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, flow->_current_rtt_ewma));
+            flow->_list_target_rtt_low.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_LOW));
+            flow->_list_target_rtt_high.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_HIGH));
+            flow->_list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT));
         }
     }
 
