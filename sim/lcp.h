@@ -329,6 +329,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_low;
     vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_high;
     vector<pair<simtime_picosec, uint64_t>> _list_baremetal_latency;
+    bool _did_qa_this_epoch;
 
     // LCP-Gemini.
     uint64_t _next_window_seq_no;

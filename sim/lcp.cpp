@@ -151,8 +151,9 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     _consecutive_good_epochs = 0;
     _time_of_next_epoch = TARGET_RTT_LOW;
     _time_of_last_qa = 0;
-    saved_acked_bytes = _bdp / 2;
+    saved_acked_bytes = 0;
     _first_qa_measurement = true;
+    _did_qa_this_epoch = false;
 
     // LCP gemini.
     _next_window_seq_no = 0;
@@ -745,41 +746,40 @@ void LcpSrc::resetQACounting() {
 }
 
 void LcpSrc::quick_adapt_drop() {
-    // Update window and ignore count
-    printf("Before Update Saved CWD is %lu \n", saved_acked_bytes);
-    if (send_size <= _bdp) {
-        // saved_acked_bytes =
-        //         saved_acked_bytes * (_bdp / (double)send_size);
-        printf("BDP %lu - Send Size %lu - Ratio %f\n", _bdp, send_size,
-                (_bdp / (double)send_size));
-    }
-    printf("After Update Saved CWD is %lu \n", saved_acked_bytes);
-    _cwnd = max((double)(saved_acked_bytes * bonus_drop),
-                (double)_mss); // 1.5 is the amount of target_rtt over
-                                // base_rtt. Simplified here for this
-                                // code share.
-    _list_fast_decrease.push_back(
-                    std::make_pair(eventlist().now() / 1000, 1));
+    if (saved_acked_bytes > 0) {
+        // Update window and ignore count
+        printf("Before Update CWD is %lu \n", _cwnd);
+        if (send_size <= _bdp) {
+            // saved_acked_bytes =
+            //         saved_acked_bytes * (_bdp / (double)send_size);
+            printf("BDP %lu - Send Size %lu - Ratio %f\n", _bdp, send_size,
+                    (_bdp / (double)send_size));
+        }
+        printf("After Update CWD is %lu \n", saved_acked_bytes);
+        _cwnd = max((double)(saved_acked_bytes * bonus_drop),
+                    (double)_mss); // 1.5 is the amount of target_rtt over
+                                    // base_rtt. Simplified here for this
+                                    // code share.
+        _list_fast_decrease.push_back(
+                        std::make_pair(eventlist().now() / 1000, 1));
 
-    check_limits_cwnd();
+        check_limits_cwnd();
+
+        _did_qa_this_epoch = true;
+    }
 }
 
 void LcpSrc::quick_adapt(bool trimmed) {
-
-    if (eventlist().now() >= next_window_end) {
-        previous_window_end = next_window_end;
-        if (_first_qa_measurement) {
-            _first_qa_measurement = false;
-        } else {
-            saved_acked_bytes = acked_bytes;
-        }
-
-        cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
-        _time_of_last_qa = eventlist().now();
-
-        acked_bytes = 0;
-        next_window_end = eventlist().now() + _base_rtt;
+    if (_first_qa_measurement) {
+        _first_qa_measurement = false;
+    } else {
+        saved_acked_bytes = acked_bytes;
     }
+
+    cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
+    _time_of_last_qa = eventlist().now();
+
+    acked_bytes = 0;
 }
 
 // void LcpSrc::quick_adapt(bool trimmed) {
@@ -1006,6 +1006,10 @@ void LcpSrc::processNack(UecNack &pkt) {
     //         }
     //     }
     // }
+
+    if (LCP_USE_QUICK_ADAPT) {
+        quick_adapt_drop();
+    }
 
     check_limits_cwnd();
 
@@ -2346,9 +2350,10 @@ void LcpEpochAgent::doNextEvent() {
     // if (flow->_flow_start_time != 0) {
     // if (flow->_flow_start_time != 0 && eventlist().now() - flow->_flow_start_time >= TARGET_RTT_LOW) {
     if (flow->_highest_sent > 0 && flow->count_total_ack > 0) {
+        flow->quick_adapt(false);
+
         // First make the window adjustment.
         cout << "TimeEpoch time: " << eventlist().now() / 1000000 << " cwnd: " << flow->_cwnd << endl;
-        flow->quick_adapt(false);
 
         if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
             flow->_consecutive_good_epochs++;
@@ -2364,23 +2369,27 @@ void LcpEpochAgent::doNextEvent() {
 
         uint32_t cwnd_before = flow->_cwnd;
 
-        // Translate rtt_change into a rate.
-        double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-        cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-        cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-        if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-            flow->_cwnd += (uint32_t)LCP_DELTA;
-            cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_cwnd << endl;
-        } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
-            flow->_cwnd *= 0.5;
-        } else if (gradient <= 0.0) {
-            flow->_cwnd += flow->_mss;
-            cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_cwnd << " delta: " << LCP_DELTA << endl;
-        } else {
-            double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-            flow->_cwnd *= (1 - gradient_change);
-            cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_cwnd << " gradient_change: " << gradient_change << endl;
+        if (!flow->_did_qa_this_epoch) {
+            // Translate rtt_change into a rate.
+            double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+            cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
+            cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
+            if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
+                flow->_cwnd += (uint32_t)LCP_DELTA;
+                cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_cwnd << endl;
+            } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
+                flow->_cwnd *= 0.5;
+            } else if (gradient <= 0.0) {
+                flow->_cwnd += flow->_mss;
+                cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_cwnd << " delta: " << LCP_DELTA << endl;
+            } else {
+                double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+                flow->_cwnd *= (1 - gradient_change);
+                cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_cwnd << " gradient_change: " << gradient_change << endl;
+            }
         }
+
+        flow->_did_qa_this_epoch = false;
 
         // Reset State.
         // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
@@ -2388,10 +2397,10 @@ void LcpEpochAgent::doNextEvent() {
         flow->check_limits_cwnd();
 
         if (COLLECT_DATA) {
-            flow->_list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, flow->_current_rtt_ewma));
-            flow->_list_target_rtt_low.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_LOW));
-            flow->_list_target_rtt_high.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_HIGH));
-            flow->_list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT));
+            flow->_list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, flow->_current_rtt_ewma / 1000));
+            flow->_list_target_rtt_low.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_LOW / 1000));
+            flow->_list_target_rtt_high.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_HIGH / 1000));
+            flow->_list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT / 1000));
         }
     }
 
