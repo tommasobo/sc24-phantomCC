@@ -85,7 +85,8 @@ int main(int argc, char **argv) {
     Packet::set_packet_size(PKT_SIZE_MODERN);
     // eventlist.setEndtime(timeFromSec(1));
     Clock c(timeFromSec(100 / 100.), eventlist);
-    mem_b queuesize = INFINITE_BUFFER_SIZE;
+    mem_b inter_queuesize = INFINITE_BUFFER_SIZE;
+    mem_b intra_queuesize = INFINITE_BUFFER_SIZE;
     int no_of_conns = 0, cwnd = MAX_CWD_MODERN_UEC, no_of_nodes = DEFAULT_NODES;
     stringstream filename(ios_base::out);
     RouteStrategy route_strategy = NOT_SET;
@@ -186,9 +187,6 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-cwnd")) {
             cwnd = atoi(argv[i + 1]);
             cout << "cwnd " << cwnd << endl;
-            i++;
-        } else if (!strcmp(argv[i], "-q")) {
-            queuesize = atoi(argv[i + 1]);
             i++;
         } else if (!strcmp(argv[i], "-use_mixed")) {
             use_mixed = atoi(argv[i + 1]);
@@ -647,9 +645,10 @@ int main(int argc, char **argv) {
             LCP_USE_MIN_RTT = true;
         }  else if (!strcmp(argv[i], "-use-ad")) {
             LCP_USE_AGGRESSIVE_DECREASE = true;
-        } else
+        } else {
+            cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
-
+        }
         i++;
     }
 
@@ -677,55 +676,37 @@ int main(int argc, char **argv) {
     }
     LcpSrc::set_quickadapt_lossless_rtt(quickadapt_lossless_rtt);
 
-    // Routing
-    // float ar_sticky_delta = 10;
-    // FatTreeSwitch::sticky_choices ar_sticky = FatTreeSwitch::PER_PACKET;
-    // atTreeSwitch::_ar_sticky = ar_sticky;
-    // FatTreeSwitch::_sticky_delta = timeFromUs(ar_sticky_delta);
-
     if (route_strategy == NOT_SET) {
         fprintf(stderr, "Route Strategy not set.  Use the -strat param.  "
                         "\nValid values are perm, rand, pull, rg and single\n");
         exit(1);
     }
 
-    // eventlist.setEndtime(timeFromUs((uint32_t)1000 * 1000 * 7));
-
     // Calculate Network Info
-    int hops = 6; // hardcoded for now
-    // uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
-    //                              (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
-    // uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
+    int inter_hops = 9; // hardcoded for now
+    int intra_hops = 6; // hardcoded for now
 
-    uint64_t base_rtt_max_hops = 2 * (9 - 1) * (LINK_DELAY_MODERN + switch_latency / 1000)  +  // All DCN latencies.
-                                2 * (interdc_delay / 1000 + switch_latency / 1000)                  +  // InterDC latencies.
-                                9 * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
-                                9 * 64 * 8 / LINK_SPEED_MODERN;                    // Ack transmission delays. 
+    uint64_t base_inter_rtt = 2 * (inter_hops - 1) * (1000 * LINK_DELAY_MODERN + switch_latency)  +  // All DCN latencies.
+                              2 * (interdc_delay)                  +  // InterDC latencies.
+                              1000 * inter_hops * (PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN                +  // Packet transmission delays.
+                              1000 * inter_hops * 64 * 8 / LINK_SPEED_MODERN;                            // Ack transmission delays. 
 
-    uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
+    uint64_t base_intra_rtt = 2 * intra_hops * (LINK_DELAY_MODERN * 1000 + switch_latency)        +  // All DCN latencies.
+                              1000 * intra_hops * (PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN                +  // Packet transmission delays.
+                              1000 * intra_hops * 64 * 8 / LINK_SPEED_MODERN;                               // Ack transmission delays. 
 
-    if (queue_size_ratio == 0) {
-        queuesize = bdp_local; // Equal to BDP if not other info
-    } else {
-        queuesize = bdp_local * queue_size_ratio;
+    uint64_t bdp_inter = (uint64_t) ((float)base_inter_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
+    uint64_t bdp_intra = (uint64_t) ((float)base_intra_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
+
+    inter_queuesize = bdp_inter; // Equal to BDP if not other info
+    intra_queuesize = bdp_intra; // Equal to BDP if not other info
+                
+
+    if (queue_size_ratio != 0) {
+        inter_queuesize *= queue_size_ratio;
     }
 
-    if (explicit_starting_buffer != 0) {
-        queuesize = explicit_starting_buffer;
-    }
-    // if (explicit_starting_cwnd != 0) {
-    //     actual_starting_cwnd = explicit_starting_cwnd;
-    //     LcpSrc::set_explicit_bdp(explicit_bdp);
-    // }
-
-    if (max_queue_size != 0) {
-        queuesize = max_queue_size;
-        LcpSrc::set_switch_queue_size(max_queue_size);
-    }
-
-    printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu - RTT "
-           "%lu - Bandwidth %lu\n",
-           bdp_local, queuesize, actual_starting_cwnd, base_rtt_max_hops, LINK_SPEED_MODERN);
+    cout << "BW: " << LINK_SPEED_MODERN << " Gbps" << endl << "Intra: " << "\n  RTT(ps): " << base_intra_rtt << "\n  BDP(B): " << bdp_intra << "\n  Queue(B): " << intra_queuesize << "\nInter: " << "\n  RTT(ps): " << base_inter_rtt << "\n  BDP(B): " << bdp_inter << "\n  Queue(B): " << inter_queuesize << endl;
 
     cout << "Using subflow count " << subflow_count << endl;
 
@@ -837,7 +818,7 @@ int main(int argc, char **argv) {
             FatTreeTopology::set_ecn_thresholds_as_queue_percentage(kmin, kmax);
             FatTreeTopology::set_bts_threshold(bts_threshold);
             FatTreeTopology::set_ignore_data_ecn(ignore_ecn_data);
-            top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, NULL, &eventlist, ff, queue_choice,
+            top = new FatTreeTopology(no_of_nodes, linkspeed, intra_queuesize, NULL, &eventlist, ff, queue_choice,
                                       hop_latency, switch_latency);
         } else {
             if (interdc_delay != 0) {
@@ -857,7 +838,7 @@ int main(int argc, char **argv) {
                queue_choice, hop_latency, switch_latency); */
 
             if (topo_file) {
-                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, queuesize, COMPOSITE, FAIR_PRIO);
+                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, intra_queuesize, inter_queuesize, COMPOSITE, FAIR_PRIO);
                 if (top_dc->no_of_nodes() != no_of_nodes) {
                     cerr << "Mismatch between connection matrix (" << no_of_nodes << " nodes) and topology ("
                          << top_dc->no_of_nodes() << " nodes)" << endl;
@@ -865,7 +846,7 @@ int main(int argc, char **argv) {
                 }
             } else {
                 FatTreeInterDCTopology::set_tiers(3);
-                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, queuesize, NULL, &eventlist, NULL,
+                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, intra_queuesize, inter_queuesize, NULL, &eventlist, NULL,
                                                     COMPOSITE, hop_latency, switch_latency, FAIR_PRIO);
             }
         }
@@ -901,17 +882,17 @@ int main(int argc, char **argv) {
             printf("Reaching here1\n");
             fflush(stdout);
 
-            /* Route *myin = new Route(*top->get_paths(src, dest)->at(0));
-            int hops = myin->hop_count(); // hardcoded for now */
-            uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
-                                         (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
-            uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
+            // /* Route *myin = new Route(*top->get_paths(src, dest)->at(0));
+            // int hops = myin->hop_count(); // hardcoded for now */
+            // uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
+            //                              (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
+            // uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
 
             LcpSrc::set_starting_cwnd(actual_starting_cwnd);
             printf("Setting CWND to %lu\n", actual_starting_cwnd);
 
-            printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu\n", bdp_local, queuesize,
-                   actual_starting_cwnd);
+            // printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu\n", bdp_local, queuesize,
+            //        actual_starting_cwnd);
 
             lcpSrc = new LcpSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
 
@@ -982,7 +963,7 @@ int main(int argc, char **argv) {
                     int idx_dc_to = top_dc->get_dc_id(dest);
                     lcpSrc->src_dc = top_dc->get_dc_id(src);
                     lcpSrc->dest_dc = top_dc->get_dc_id(dest);
-                    lcpSrc->updateParams(switch_latency / 1000, queuesize);
+                    lcpSrc->updateParams(base_intra_rtt, base_inter_rtt, bdp_intra, bdp_inter, intra_queuesize, inter_queuesize);
 
                     printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
 
@@ -1058,7 +1039,7 @@ int main(int argc, char **argv) {
             FatTreeTopology::set_ecn_thresholds_as_queue_percentage(kmin, kmax);
             FatTreeTopology::set_bts_threshold(bts_threshold);
             FatTreeTopology::set_ignore_data_ecn(ignore_ecn_data);
-            FatTreeTopology *top = new FatTreeTopology(no_of_nodes, linkspeed, queuesize, NULL, &eventlist, ff,
+            FatTreeTopology *top = new FatTreeTopology(no_of_nodes, linkspeed, intra_queuesize, NULL, &eventlist, ff,
                                                        queue_choice, hop_latency, switch_latency);
             lgs = new LogSimInterface(NULL, &traffic_logger, eventlist, top, NULL);
         } else {
@@ -1076,13 +1057,13 @@ int main(int argc, char **argv) {
             FatTreeInterDCTopology::set_bts_threshold(bts_threshold);
             FatTreeInterDCTopology::set_ignore_data_ecn(ignore_ecn_data);
             FatTreeInterDCTopology *top = new FatTreeInterDCTopology(
-                    no_of_nodes, linkspeed, queuesize, NULL, &eventlist, ff, queue_choice, hop_latency, switch_latency);
+                    no_of_nodes, linkspeed, intra_queuesize, inter_queuesize, NULL, &eventlist, ff, queue_choice, hop_latency, switch_latency);
             lgs = new LogSimInterface(NULL, &traffic_logger, eventlist, top, NULL);
         }
 
         lgs->set_protocol(UEC_PROTOCOL);
         lgs->set_cwd(cwnd);
-        lgs->set_queue_size(queuesize);
+        lgs->set_queue_size(intra_queuesize);
         lgs->setReuse(reuse_entropy);
         // lgs->setNumberEntropies(number_entropies);
         lgs->setIgnoreEcnAck(ignore_ecn_ack);

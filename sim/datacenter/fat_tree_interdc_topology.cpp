@@ -65,13 +65,15 @@ void FatTreeInterDCTopology::set_tier_parameters(int tier, int radix_up, int rad
 
 // load a config file and use it to create a FatTreeInterDCTopology
 FatTreeInterDCTopology *FatTreeInterDCTopology::load(const char *filename, QueueLoggerFactory *logger_factory,
-                                                     EventList &eventlist, mem_b queuesize, queue_type q_type,
+                                                     EventList &eventlist, mem_b intra_queuesize, mem_b inter_queuesize, queue_type q_type,
                                                      queue_type sender_q_type) {
     std::ifstream file(filename);
     if (file.is_open()) {
-        FatTreeInterDCTopology *ft = load(file, logger_factory, eventlist, queuesize, q_type, sender_q_type);
-        ft->_queuesize = queuesize;
-        printf("Setting queuesize to %d\n", ft->_queuesize);
+        FatTreeInterDCTopology *ft = load(file, logger_factory, eventlist, intra_queuesize, inter_queuesize, q_type, sender_q_type);
+        ft->_intra_queuesize = intra_queuesize;
+        ft->_inter_queuesize = inter_queuesize;
+        printf("Setting intra queuesize to %d\n", ft->_intra_queuesize);
+        printf("Setting inter queuesize to %d\n", ft->_inter_queuesize);
         file.close();
         return ft;
     } else {
@@ -91,8 +93,8 @@ void to_lower(string &s) {
 }
 
 FatTreeInterDCTopology *FatTreeInterDCTopology::load(istream &file, QueueLoggerFactory *logger_factory,
-                                                     EventList &eventlist, mem_b queuesize, queue_type q_type,
-                                                     queue_type sender_q_type) {
+                                                     EventList &eventlist, mem_b intra_queuesize, mem_b inter_queuesize,
+                                                     queue_type q_type, queue_type sender_q_type) {
     // cout << "topo load start\n";
     std::string line;
     int linecount = 0;
@@ -101,9 +103,9 @@ FatTreeInterDCTopology *FatTreeInterDCTopology::load(istream &file, QueueLoggerF
     _tiers = 0;
     _hosts_per_pod = 0;
     for (int tier = 0; tier < 3; tier++) {
-        _queue_down[tier] = queuesize;
+        _queue_down[tier] = intra_queuesize;
         if (tier != 2)
-            _queue_up[tier] = queuesize;
+            _queue_up[tier] = intra_queuesize;
     }
     while (std::getline(file, line)) {
         linecount++;
@@ -271,19 +273,21 @@ FatTreeInterDCTopology *FatTreeInterDCTopology::load(istream &file, QueueLoggerF
     }
 
     cout << "Topology load done\n";
-    FatTreeInterDCTopology *ft = new FatTreeInterDCTopology(no_of_nodes, 0, queuesize, logger_factory, &eventlist, NULL,
+    FatTreeInterDCTopology *ft = new FatTreeInterDCTopology(no_of_nodes, 0, intra_queuesize, inter_queuesize, logger_factory, &eventlist, NULL,
                                                             q_type, 0, 0, sender_q_type);
-    ft->_queuesize = queuesize;
+    ft->_intra_queuesize = intra_queuesize;
+    ft->_inter_queuesize = inter_queuesize;
     cout << "FatTree constructor done, " << ft->no_of_nodes() << " nodes created\n";
     return ft;
 }
 
-FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                                                QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *fit,
                                                queue_type q, simtime_picosec latency, simtime_picosec switch_latency,
                                                queue_type snd) {
     _linkspeed = linkspeed;
-    _queuesize = queuesize;
+    _intra_queuesize = intra_queuesize;
+    _inter_queuesize = inter_queuesize;
     _logger_factory = logger_factory;
     _eventlist = ev;
     ff = fit;
@@ -296,17 +300,18 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     cout << "Fat Tree topology with " << timeAsUs(_hop_latency) << "us links and " << timeAsUs(_switch_latency)
          << "us switching latency." << endl;
 
-    set_queue_sizes(queuesize);
+    set_queue_sizes(intra_queuesize, inter_queuesize);
     set_params(no_of_nodes);
 
     init_network();
 }
 
-FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                                                QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *fit,
                                                queue_type q) {
     _linkspeed = linkspeed;
-    _queuesize = queuesize;
+    _intra_queuesize = intra_queuesize;
+    _inter_queuesize = inter_queuesize;
     _logger_factory = logger_factory;
     _eventlist = ev;
     ff = fit;
@@ -316,7 +321,7 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     _hop_latency = timeFromUs((uint32_t)1);
     _switch_latency = timeFromUs((uint32_t)0);
 
-    set_queue_sizes(queuesize);
+    set_queue_sizes(intra_queuesize, inter_queuesize);
 
     cout << "Fat tree topology (1) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);
@@ -324,11 +329,12 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     init_network();
 }
 
-FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                                                QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *fit,
                                                queue_type q, uint32_t num_failed) {
     _linkspeed = linkspeed;
-    _queuesize = queuesize;
+    _intra_queuesize = intra_queuesize;
+    _inter_queuesize = inter_queuesize;
     _hop_latency = timeFromUs((uint32_t)1);
     _switch_latency = timeFromUs((uint32_t)0);
     _logger_factory = logger_factory;
@@ -340,7 +346,7 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
 
     failed_links = num_failed;
 
-    set_queue_sizes(queuesize);
+    set_queue_sizes(intra_queuesize, inter_queuesize);
 
     cout << "Fat tree topology (2) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);
@@ -348,11 +354,12 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     init_network();
 }
 
-FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                                                QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *fit,
                                                queue_type qtype, queue_type sender_qtype, uint32_t num_failed) {
     _linkspeed = linkspeed;
-    _queuesize = queuesize;
+    _intra_queuesize = intra_queuesize;
+    _inter_queuesize = inter_queuesize;
     _hop_latency = timeFromUs((uint32_t)1);
     _switch_latency = timeFromUs((uint32_t)0);
     _logger_factory = logger_factory;
@@ -365,7 +372,7 @@ FatTreeInterDCTopology::FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_b
     failed_links = num_failed;
 
     
-    set_queue_sizes(queuesize);
+    set_queue_sizes(intra_queuesize, inter_queuesize);
 
     cout << "Fat tree topology (3) with " << no_of_nodes << " nodes" << endl;
     set_params(no_of_nodes);
@@ -395,13 +402,13 @@ void FatTreeInterDCTopology::set_linkspeeds(linkspeed_bps linkspeed) {
     }
 }
 
-void FatTreeInterDCTopology::set_queue_sizes(mem_b queuesize) {
-    if (queuesize != 0) {
+void FatTreeInterDCTopology::set_queue_sizes(mem_b intra_queuesize, mem_b inter_queuesize) {
+    if (intra_queuesize != 0) {
         // all tiers use the same queuesize
         for (int tier = TOR_TIER; tier <= CORE_TIER; tier++) {
-            _queue_down[tier] = queuesize;
+            _queue_down[tier] = intra_queuesize;
             if (tier != CORE_TIER)
-                _queue_up[tier] = queuesize;
+                _queue_up[tier] = intra_queuesize;
         }
     } else {
         // the tier queue sizes must have already been set
@@ -1224,13 +1231,14 @@ void FatTreeInterDCTopology::init_network() {
 
                     // UpLinks Queues and Pipes
                     queues_nc_nborder[i][core][border_sw][link_num] =
-                            alloc_queue(queueLogger, _downlink_speeds[0], _queuesize, UPLINK, BORDER_TIER, false);
+                            alloc_queue(queueLogger, _downlink_speeds[0], _intra_queuesize, UPLINK, BORDER_TIER, false);
 
                     queues_nc_nborder[i][core][border_sw][link_num]->setName("DC" + ntoa(i) + "-CS" + ntoa(core) +
                                                                              "->BORDER" + ntoa(border_sw) + "_LINK" +
                                                                              ntoa(link_num));
 
-                    pipes_nc_nborder[i][core][border_sw][link_num] = new Pipe(_hop_latency, *_eventlist);
+                    simtime_picosec hop_latency = (_hop_latency == 0) ? _link_latencies[CORE_TIER] : _hop_latency;
+                    pipes_nc_nborder[i][core][border_sw][link_num] = new Pipe(hop_latency, *_eventlist);
 
                     pipes_nc_nborder[i][core][border_sw][link_num]->setName("DC" + ntoa(i) + "-Pipe-CS" + ntoa(core) +
                                                                             "->BORDER" + ntoa(border_sw) + "_LINK" +
@@ -1238,13 +1246,13 @@ void FatTreeInterDCTopology::init_network() {
 
                     // DownLinks Queues and Pipes
                     queues_nborder_nc[i][border_sw][core][link_num] =
-                            alloc_queue(queueLogger, _downlink_speeds[0], _queuesize, DOWNLINK, BORDER_TIER, false);
+                            alloc_queue(queueLogger, _downlink_speeds[0], _intra_queuesize, DOWNLINK, BORDER_TIER, false);
 
                     queues_nborder_nc[i][border_sw][core][link_num]->setName("DC" + ntoa(i) + "-BORDER" +
                                                                              ntoa(border_sw) + "->CS" + ntoa(core) +
                                                                              "_LINK" + ntoa(link_num));
 
-                    pipes_nborder_nc[i][border_sw][core][link_num] = new Pipe(_hop_latency, *_eventlist);
+                    pipes_nborder_nc[i][border_sw][core][link_num] = new Pipe(hop_latency, *_eventlist);
 
                     pipes_nborder_nc[i][border_sw][core][link_num]->setName("DC" + ntoa(i) + "-Pipe-BORDER" +
                                                                             ntoa(border_sw) + "->CS" + ntoa(core) +
@@ -1278,11 +1286,11 @@ void FatTreeInterDCTopology::init_network() {
             for (int link_num = 0; link_num < _num_links_between_borders; link_num++) {
 
                 printf("Creating link between border switches %d and %d - %lu %lu\n", link_num, link_num,
-                       _downlink_speeds[0], _queuesize);
+                       _downlink_speeds[0], _inter_queuesize);
 
                 // UpLinks Queues and Pipes
                 queues_nborderl_nborderu[border_l][border_u][link_num] =
-                        alloc_queue(queueLogger, _downlink_speeds[0], _queuesize, UPLINK, BORDER_TIER, false);
+                        alloc_queue(queueLogger, _downlink_speeds[0], _inter_queuesize, UPLINK, BORDER_TIER, false);
 
                 queues_nborderl_nborderu[border_l][border_u][link_num]->setName(
                         "DC" + ntoa(0) + "-BORDER" + ntoa(border_l) + "->BORDER" + ntoa(border_u) +
@@ -1296,7 +1304,7 @@ void FatTreeInterDCTopology::init_network() {
 
                 // DownLinks Queues and Pipes
                 queues_nborderu_nborderl[border_u][border_l][link_num] =
-                        alloc_queue(queueLogger, _downlink_speeds[0], _queuesize, DOWNLINK, BORDER_TIER, false);
+                        alloc_queue(queueLogger, _downlink_speeds[0], _inter_queuesize, DOWNLINK, BORDER_TIER, false);
 
                 queues_nborderu_nborderl[border_u][border_l][link_num]->setName(
                         "DC" + ntoa(1) + "-BORDER" + ntoa(border_u) + "->BORDER" + ntoa(border_l) + "_LINK" +

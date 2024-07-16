@@ -81,17 +81,17 @@ class FatTreeInterDCTopology : public Topology {
 
     // For regular topologies, just use the constructor.  For custom topologies, load from a config file.
     static FatTreeInterDCTopology *load(const char *filename, QueueLoggerFactory *logger_factory, EventList &eventlist,
-                                        mem_b queuesize, queue_type q_type, queue_type sender_q_type);
+                                        mem_b intra_queuesize, mem_b inter_queuesize, queue_type q_type, queue_type sender_q_type);
 
-    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                            QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *f, queue_type qt,
                            simtime_picosec latency, simtime_picosec switch_latency, queue_type snd = FAIR_PRIO);
-    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                            QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *f, queue_type qt);
-    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                            QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *f, queue_type qt,
                            uint32_t fail);
-    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b queuesize,
+    FatTreeInterDCTopology(uint32_t no_of_nodes, linkspeed_bps linkspeed, mem_b intra_queuesize, mem_b inter_queuesize,
                            QueueLoggerFactory *logger_factory, EventList *ev, FirstFit *f, queue_type qt,
                            queue_type sender_qt, uint32_t fail);
 
@@ -205,12 +205,12 @@ class FatTreeInterDCTopology : public Topology {
     uint32_t getOS() const { return _os; }
     uint32_t getOSStage1() const { return _os_ratio_stage_1; }
     uint32_t getNAGG() const { return NAGG; }
-    void set_queue_sizes(mem_b queuesize);
+    void set_queue_sizes(mem_b intra_queuesize, mem_b inter_queuesize);
 
   private:
     map<Queue *, int> _link_usage;
     static FatTreeInterDCTopology *load(istream &file, QueueLoggerFactory *logger_factory, EventList &eventlist,
-                                        mem_b queuesize, queue_type q_type, queue_type sender_q_type);
+                                        mem_b intra_queuesize, mem_b inter_queuesize, queue_type q_type, queue_type sender_q_type);
     int64_t find_lp_switch(Queue *queue);
     void set_linkspeeds(linkspeed_bps linkspeed);
     int64_t find_up_switch(Queue *queue);
@@ -224,7 +224,8 @@ class FatTreeInterDCTopology : public Topology {
     static uint64_t _interdc_delay;
     static uint32_t _os, _os_ratio_stage_1;
     uint32_t _no_of_nodes, _no_of_core_to_border, _num_links_same_border_from_core, _num_links_between_borders;
-    mem_b _queuesize;
+    mem_b _intra_queuesize;
+    mem_b _inter_queuesize;
     linkspeed_bps _linkspeed;
     simtime_picosec _hop_latency, _switch_latency;
     static int kmin;

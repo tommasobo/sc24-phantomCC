@@ -1140,8 +1140,8 @@ void UecSrc::processAck(UecAck &pkt, bool force_marked) {
             f_flow_over_hook(pkt);
         }
 
-        cout << "Flow " << nodename() << " finished at " << timeAsMs(eventlist().now()) << endl;
-        cout << "Flow " << nodename() << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
+        cout << "Flow " <<  _name + "_" + std::to_string(tag) + ".txt" << " finished at " << timeAsMs(eventlist().now()) << endl;
+        cout << "Flow " << _name + "_" + std::to_string(tag) + ".txt" << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
              << endl;
 
         printf("Flow Completion time is %f - Flow Finishing Time %lu - Flow "

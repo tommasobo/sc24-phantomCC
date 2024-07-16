@@ -163,7 +163,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     virtual void rtx_timer_hook(simtime_picosec now, simtime_picosec period);
     void pacedSend();
     static void set_interdc_delay(uint64_t delay) { _interdc_delay = delay; }
-    void updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes);
+    void updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint64_t bdp_intra, uint64_t bdp_inter, uint64_t intra_queuesize, uint64_t inter_queuesize);
 
     void track_sending_rate();
     void track_ecn_rate();
@@ -356,7 +356,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
 
     // new CC variables
     uint64_t _target_rtt;
-    uint64_t _base_rtt;
+    simtime_picosec _base_rtt; // Picoseconds.
     uint64_t _bdp;
     uint64_t _queue_size;
     uint32_t _consecutive_low_rtt;

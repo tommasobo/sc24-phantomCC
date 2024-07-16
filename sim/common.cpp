@@ -11,7 +11,7 @@ uint64_t HOPS = 6;                          // Max Hops Topology
 uint64_t INFINITE_BUFFER_SIZE = 1000000000; // Assume infinite buffer space
 
 // Values for "modern" networking simulations
-int PKT_SIZE_MODERN = 2048;       // Bytes
+int PKT_SIZE_MODERN = 4096;       // Bytes
 uint64_t LINK_SPEED_MODERN = 400; // Gb/s
 uint64_t SINGLE_PKT_TRASMISSION_TIME_MODERN =
         PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN;

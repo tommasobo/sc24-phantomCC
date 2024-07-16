@@ -217,7 +217,7 @@ LcpSrc::~LcpSrc() {
         MyFileTargetRTTHigh.close();
 
         // BAREMETAL RTT.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_rtt/baremetal_rtt" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileBaremetalRTT(file_name, std::ios_base::app);
 
         for (const auto &p : _list_baremetal_latency) {
@@ -398,7 +398,8 @@ void LcpSrc::update_pacing_delay() {
     // cout << "PaceDelayChange: Last change was " << eventlist().now() - last_pac_change << " ago at " << GLOBAL_TIME / 1000 << endl;
     if (LCP_USE_PACING && is_time_to_update) {
         pacing_delay = (((double)_mss) / (((double)_cwnd) / (_base_rtt / 1000.0))) * (1.0 - LCP_PACING_BONUS);
-        cout << "PaceDelayChange: Setting the pacing delay to: " << pacing_delay << " at " << GLOBAL_TIME / 1000
+        cout << "Base RTT: " << _base_rtt << " at " << GLOBAL_TIME / 1000 << endl;
+        cout << "PaceDelayChange: Setting the pacing delay to: " << pacing_delay << " (ns) at " << GLOBAL_TIME / 1000
              << " with cwnd: " << _cwnd << " and mss: " << _mss << endl;
             pacing_delay *= 1000; // ps
         if (generic_pacer != NULL) {
@@ -419,25 +420,20 @@ void LcpSrc::doNextEvent() { startflow(); }
 void LcpSrc::set_end_trigger(Trigger &end_trigger) { _end_trigger = &end_trigger; }
 
 // Update Network Parameters
-void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) {
+void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint64_t bdp_intra, uint64_t bdp_inter, uint64_t intra_queuesize, uint64_t inter_queuesize) {
+    uint64_t queuesize_bytes = 0;
     if (src_dc != dest_dc) {
         _hop_count = 9;
-        _base_rtt = (2 * (_hop_count - 1) * (LINK_DELAY_MODERN)  +  // All DCN latencies.
-                    2 * (_interdc_delay / 1000)                  +  // InterDC latencies.
-                    _hop_count * PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN             +  // Packet transmission delays.
-                    _hop_count * 64 * 8 / LINK_SPEED_MODERN) * 1000;                    // Ack transmission delays. 
-                    
+        _base_rtt = base_rtt_inter;
+        _bdp = bdp_inter;
+        queuesize_bytes = inter_queuesize;
         cout << "Base RTT (9): " << _base_rtt << endl;
-        cout << "    LINK_DELAY_MODERN: " << LINK_DELAY_MODERN << endl;
-        cout << "    PKT_SIZE_MODERN: " << PKT_SIZE_MODERN << endl;
-        cout << "    LINK_SPEED_MODERN: " << LINK_SPEED_MODERN << endl;
-        cout << "    switch_latency_ns: " << switch_latency_ns << endl;
-        cout << "    _interdc_delay: " << _interdc_delay << endl;
+        cout << "    Base rtt inter: " << base_rtt_inter << endl;
     } else {
         _hop_count = 6;
-        _base_rtt = ((_hop_count * LINK_DELAY_MODERN) + ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) +
-                     +(_hop_count * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
-                    1000;
+        _base_rtt = base_rtt_intra;
+        _bdp = bdp_intra;
+        queuesize_bytes = intra_queuesize;
         cout << "Base RTT (6): " << _base_rtt << endl;
     }
 
@@ -467,10 +463,8 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) 
     next_window_end = eventlist().now();
     last_ecn_seen = eventlist().now();
 
-    _bdp = (_base_rtt * LINK_SPEED_MODERN / 8) / 1000;
-
     if (starting_cwnd == 1) {
-        cout << "Setting CWND to: " << _bdp << endl;
+        cout << "Finally setting CWND to: " << _bdp << endl;
         _cwnd = _bdp;
     } else {
         cout << "thestartcwnd " << starting_cwnd << endl;
@@ -483,18 +477,12 @@ void LcpSrc::updateParams(uint64_t switch_latency_ns, uint64_t queuesize_bytes) 
     BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
     float queue_latency_ns = (float) queuesize_bytes * 8 / (float) LINK_SPEED_MODERN;
-    float extra_packet_latency_ns = (5.0 * (float)_mss * 8.0) / (float) LINK_SPEED_MODERN;
-    //TARGET_RTT_HIGH = BAREMETAL_RTT * 1.1;
     TARGET_RTT_HIGH = 0.9 * queue_latency_ns * 1000.0 + BAREMETAL_RTT;
     cout << "TARGET_RTT_HIGH: " << TARGET_RTT_HIGH << endl;
     cout << "    queue_latency_ns: " << queue_latency_ns << endl;
-    cout << "    extra_packet_latency_ns: " << extra_packet_latency_ns << endl;
     cout << "    baremetal_rtt: " << BAREMETAL_RTT << endl;
     cout << "    queuesize_bytes: " << queuesize_bytes << endl;
     cout << "    LINK_SPEED_MODERN: " << LINK_SPEED_MODERN << endl;
-    // TARGET_RTT_HIGH = (((queuesize_bytes * 8) / (LINK_SPEED_MODERN)) + // Max queueing latency.
-    //                     (2 * _mss * 8) / (LINK_SPEED_MODERN)) * 1000 +                       // Few packets
-    //                     BAREMETAL_RTT; // Base RTT
 
     assert(TARGET_RTT_HIGH > TARGET_RTT_LOW);
 
@@ -776,7 +764,7 @@ void LcpSrc::quick_adapt(bool trimmed) {
         saved_acked_bytes = acked_bytes;
     }
 
-    cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
+    // cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
     _time_of_last_qa = eventlist().now();
 
     acked_bytes = 0;
@@ -1343,7 +1331,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
              << endl;
 
         // FCT.
-        auto fct_file_name = PROJECT_ROOT_PATH / ("sim/output/fct/fct" + _name + std::to_string(tag) + ".txt");
+        auto fct_file_name = PROJECT_ROOT_PATH / ("sim/output/fct/fct" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileFCT(fct_file_name, std::ios_base::app);
 
         MyFileFCT << timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time) << std::endl;
@@ -1724,7 +1712,6 @@ void LcpSrc::pacedSend() {
 }
 
 void LcpSrc::send_packets() {
-
     if (_rtx_pending) {
         retransmit_packet();
     }
@@ -2349,6 +2336,7 @@ LcpEpochAgent::LcpEpochAgent(EventList &event_list, LcpSrc *flow)
 void LcpEpochAgent::doNextEvent() {
     // if (flow->_flow_start_time != 0) {
     // if (flow->_flow_start_time != 0 && eventlist().now() - flow->_flow_start_time >= TARGET_RTT_LOW) {
+    // cout << "Highest sent: " << flow->_highest_sent << " Total ACK: " << flow->count_total_ack << " Time: " << eventlist().now() / 1000000 << " Flow finished: " << flow->_flow_finished << endl;
     if (flow->_highest_sent > 0 && flow->count_total_ack > 0) {
         flow->quick_adapt(false);
 
@@ -2405,6 +2393,15 @@ void LcpEpochAgent::doNextEvent() {
     }
 
     // Then schedule the next epoch as long as we haven't reached the end.
-    if (!flow->_flow_finished) 
-        eventlist().sourceIsPendingRel(*this, TARGET_RTT_LOW);
+    if (!flow->_flow_finished) {
+        simtime_picosec time_until_next_epoch = flow->_current_rtt_ewma;
+        // Add some random jitter so the flows don't all align. Make it max 1% of the epoch time.
+        if (!flow->_current_rtt_ewma == 0) {
+            time_until_next_epoch += (random() % (flow->_current_rtt_ewma / 10));
+        } else {
+            time_until_next_epoch += 1000000;
+        
+        }
+        eventlist().sourceIsPendingRel(*this, time_until_next_epoch);
+    }
 }
