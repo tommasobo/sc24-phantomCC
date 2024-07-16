@@ -735,7 +735,9 @@ int main(int argc, char **argv) {
         lcpSrc->setIgnoreEcnAck(1);
         lcpSrc->setIgnoreEcnData(1);
         lcpSrc->setNumberEntropies(256);
-        lcpSrc->updateParams(switch_latency / 1000, queuesize);
+        // lcpSrc->updateParams(switch_latency / 1000, queuesize);
+        // TODO: THIS DOES NOT WORK RIGHT NOW.
+        exit(-1);
         uec_srcs.push_back(lcpSrc);
         lcpSrc->set_dst(dest);
         printf("Reaching here\n");

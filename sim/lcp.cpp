@@ -121,6 +121,8 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 
     _maxcwnd = bdp;
     _cwnd = starting_cwnd;
+    _lcp_cwnd = starting_cwnd;
+    _mprdma_cwnd = starting_cwnd;
     _consecutive_low_rtt = 0;
     target_window = _cwnd;
     _target_based_received = true;
@@ -182,6 +184,14 @@ LcpSrc::~LcpSrc() {
 
         for (const auto &p : _list_cwd) {
             MyFileCWD << p.first << "," << p.second << std::endl;
+        }
+
+        // Driving loop.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/driving/driving" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileDriving(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_driving_loop) {
+            MyFileDriving << p.first << "," << p.second << std::endl;
         }
 
         MyFileCWD.close();
@@ -466,9 +476,13 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     if (starting_cwnd == 1) {
         cout << "Finally setting CWND to: " << _bdp << endl;
         _cwnd = _bdp;
+        _lcp_cwnd = _bdp;
+        _mprdma_cwnd = _bdp;
     } else {
         cout << "thestartcwnd " << starting_cwnd << endl;
         _cwnd = starting_cwnd;
+        _lcp_cwnd = starting_cwnd;
+        _mprdma_cwnd = starting_cwnd;
     }
 
     if (LCP_DELTA == 1) {
@@ -710,6 +724,15 @@ void LcpSrc::reduce_unacked(uint64_t amount) {
 }
 
 void LcpSrc::check_limits_cwnd() {
+    // Set the cwnd to the minimum of the two.
+    _cwnd = min(_lcp_cwnd, _mprdma_cwnd);
+
+    if (_lcp_cwnd < _mprdma_cwnd) {
+        _list_driving_loop.push_back(std::make_pair(eventlist().now() / 1000, 1));
+    } else {
+        _list_driving_loop.push_back(std::make_pair(eventlist().now() / 1000, 0));
+    }
+
     // Upper Limit
     if (_cwnd > _maxcwnd) {
         _cwnd = _maxcwnd;
@@ -718,6 +741,9 @@ void LcpSrc::check_limits_cwnd() {
     if (_cwnd < _mss) {
         _cwnd = _mss;
     }
+
+    _lcp_cwnd = max(min(_lcp_cwnd, (uint32_t)_maxcwnd), (uint32_t)_mss);
+    _mprdma_cwnd = max(min(_mprdma_cwnd, (uint32_t)_maxcwnd), (uint32_t)_mss);
 
     update_pacing_delay();
 }
@@ -748,6 +774,8 @@ void LcpSrc::quick_adapt_drop() {
                     (double)_mss); // 1.5 is the amount of target_rtt over
                                     // base_rtt. Simplified here for this
                                     // code share.
+        _lcp_cwnd = _cwnd;
+        _mprdma_cwnd = _cwnd;
         _list_fast_decrease.push_back(
                         std::make_pair(eventlist().now() / 1000, 1));
 
@@ -770,193 +798,6 @@ void LcpSrc::quick_adapt(bool trimmed) {
     acked_bytes = 0;
 }
 
-// void LcpSrc::quick_adapt(bool trimmed) {
-
-//     if (!use_fast_drop) {
-//         return;
-//     }
-
-//     if (_flow_size < _bdp * 10.0 / 100) {
-//         return;
-//     }
-
-//     double multiplier_small_flow = 1;
-//     if (_flow_size < _bdp) {
-//         multiplier_small_flow = _bdp / (double)_flow_size;
-//         // acked_bytes = acked_bytes * multiplier_small_flow;
-//     }
-
-//     if (eventlist().now() >= next_window_end) {
-//         printf("Just updated %d at %lu vs %lu - %lu %lu\n", from, eventlist().now() / 1000, previous_window_end / 1000,
-//                acked_bytes, acked_bytes);
-//         previous_window_end = next_window_end;
-//         saved_acked_bytes = acked_bytes;
-
-//         qa_window_start = eventlist().now();
-
-//         next_window_end = eventlist().now() + qa_period;
-//         if (algorithm_type == "intersmartt" && _hop_count > 6) {
-//             next_window_end = eventlist().now() + qa_period;
-//         }
-//         // Enable Fast Drop
-//         acked_bytes += 1;
-//         double rate_bts = bts_received / (double)tot_pkt_seen_qa * 100;
-
-//         /* printf("Considering QA %d - BTS Rate %f - Cond: %d %d - Acked %d - Window End %lu - Time Passed %lu\n",
-//            from, rate_bts, trimmed, need_quick_adapt, acked_bytes, next_window_end / 1000, (eventlist().now() -
-//            qa_window_start) / 1000); */
-//         bts_received = 0;
-//         acked_bytes = 0;
-//         tot_pkt_seen_qa = 0;
-
-//         if (rate_bts > 3 && use_bts) {
-//             return;
-//         }
-
-//         /* printf("From %d considering QA at %lu -- %d %d %lu\n", from, eventlist().now() / 1000, trimmed,
-//         need_quick_adapt, previous_window_end / 1000); */
-
-//         if ((need_quick_adapt) && previous_window_end != 0 && eventlist().now() > _flow_start_time + _base_rtt * 1.1) {
-
-//             if (eventlist().now() < ignore_for_time) {
-//                 return;
-//             }
-
-//             if (eventlist().now() > next_qa) {
-//                 next_qa = eventlist().now() + _base_rtt * 3;
-//             } else {
-//                 need_quick_adapt = false;
-//                 return;
-//             }
-
-//             // Edge case where we get here receiving a packet a long time after
-//             // the last one (>> base_rtt). Should not matter in most cases.
-//             /*saved_acked_bytes =
-//                     saved_acked_bytes *
-//                     ((double)_base_rtt /
-//                      (eventlist().now() - previous_window_end + _base_rtt));*/
-
-//             // Update window and ignore count
-//             printf("Before Update Saved CWD is %lu \n", saved_acked_bytes);
-//             if (send_size <= _bdp) {
-//                 // saved_acked_bytes =
-//                 //         saved_acked_bytes * (_bdp / (double)send_size);
-//                 printf("BDP %lu - Send Size %lu - Ratio %f\n", _bdp, send_size, (_bdp / (double)send_size));
-//             }
-
-//             double mult_fact = (saved_acked_bytes / (double)old_sent_bytes_previous_window);
-
-//             /* _cwnd = max((double)(saved_acked_bytes * bonus_drop * mult_fact),
-//                         (double)_mss); // 1.5 is the amount of target_rtt over
-//             // base_rtt. Simplified here for this
-//             // code share. */
-//             /* printf("Testing Drop: Saved %d - Sent %lu %lu - %f\n", saved_acked_bytes, sent_bytes_previous_window,
-//                    old_sent_bytes_previous_window, old_sent_bytes_previous_window / (double)saved_acked_bytes);
-//             _cwnd = max((double)(_cwnd * bonus_drop * mult_fact),
-//                         (double)_mss); // 1.5 is the amount of target_rtt over
-//                                        // base_rtt. Simplified here for this
-//                                        // code share. */
-
-//             double increase_by = 1;
-//             if (_flow_size < _bdp) {
-//                 increase_by = _bdp / (double)((_flow_size * 1.0) + _switch_queue_size);
-//             }
-
-//             printf("Increase By %f - Queue Size %lu - Flow Size %lu\n", increase_by, _switch_queue_size, _flow_size);
-
-//             _cwnd = max((double)(saved_acked_bytes * bonus_drop * increase_by * qa_mult),
-//                         (double)_mss); // 1.5 is the amount of target_rtt over
-//             last_ecn_seen = eventlist().now() + _base_rtt * 1;
-//             printf("After Update Saved CWD is %lu \n", _cwnd);
-
-//             if (eventlist().now() < _base_rtt * 5 && jump_to != 0) {
-//                 int coin = rand() % 2;
-//                 int extra = rand() % (jump_to / 10);
-//                 if (jump_to > 1200000) {
-//                     extra /= 100;
-//                 } else if (jump_to > 1000000) {
-//                     extra /= 3;
-//                 }
-
-//                 if (coin % 2 == 0) {
-//                     _cwnd = jump_to + extra;
-//                 } else {
-//                     _cwnd = jump_to - extra / 2;
-//                 }
-//             }
-//             ignore_for = (get_unacked() / (double)_mss);
-//             tried_qa = true;
-//             if (algorithm_type == "intersmartt" && _hop_count > 6) {
-//                 _cwnd = _cwnd = max((double)(saved_acked_bytes * bonus_drop * qa_mult), (double)_mss);
-//                 ignore_for = (get_unacked() / (double)_mss) * 1.2;
-//             } else if (_hop_count > 6) {
-//                 ignore_for = (get_unacked() / (double)_mss) * 2.2;
-//             }
-//             ignore_for_time = eventlist().now() + _base_rtt * 1;
-
-//             if (_hop_count > 6) {
-//                 // ignore_for = 10;
-//             }
-
-//             printf("Ignoring for %d packets\n", ignore_for);
-//             check_limits_cwnd();
-
-//             // Reset counters, update logs.
-//             count_received = 0;
-//             need_quick_adapt = false;
-//             _list_fast_decrease.push_back(std::make_pair(eventlist().now() / 1000, 1));
-
-//             // Update x_gain after large incasts. We want to limit its effect if
-//             // we move to much smaller windows.
-//             // x_gain = min(initial_x_gain,
-//             //             (_queue_size / 5.0) / (_mss * ((double)_bdp /
-//             //             _cwnd)));
-//             // printf("New X Gain is %f\n", x_gain);
-//             did_qa = true;
-//             qa_count++;
-//             pause_send = false;
-//             last_qa_event = eventlist().now();
-
-//             pacing_delay = (4160 * 8) / ((_cwnd * 8.0) / (_base_rtt / 1000.0));
-//             //  pacing_delay -= (4160 * 8 / 80);
-//             /* printf("Setting the pacing delay update %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000),
-//                pacing_delay, GLOBAL_TIME / 1000); */
-//             if (use_pacing && generic_pacer != NULL) {
-//                 pacing_delay *= 1000; // ps
-//                 generic_pacer->cancel();
-//             }
-
-//             // generic_pacer->schedule_send(pacing_delay);
-//             last_pac_change = eventlist().now();
-
-//             // Print
-
-//             total_pkt = 0;
-//             total_nack = 0;
-//             printf("Previous and Current Window %lu %lu\n", previous_window_end / 1000, next_window_end / 1000);
-//             printf("Using Fast Drop2 - Flow %d@%d@%d, Ecn %d, CWND %d, "
-//                    "Saved "
-//                    "Acked %d (dropping to %f - bonus1  %f -> %f and "
-//                    "%f) - Multiplier %f "
-//                    "Previous "
-//                    "Window %lu - Next "
-//                    "Window %lu// "
-//                    "Time "
-//                    "%lu\n",
-//                    this->from, this->to, tag, 1, _cwnd, saved_acked_bytes,
-//                    max((double)(saved_acked_bytes * bonus_drop), saved_acked_bytes * bonus_drop + _mss), bonus_drop,
-//                    (saved_acked_bytes * bonus_drop), multiplier_small_flow, (saved_acked_bytes * bonus_drop + _mss),
-//                    previous_window_end / 1000, next_window_end / 1000, eventlist().now() / 1000);
-//             printf("Multiplier is %f - Dropping to %f\n", multiplier_small_flow,
-//                    multiplier_small_flow * saved_acked_bytes);
-//             printf("Sent Bytes %lu - Mult %f\n", sent_bytes_previous_window,
-//                    sent_bytes_previous_window / (double)saved_acked_bytes);
-//         }
-//         old_sent_bytes_previous_window = sent_bytes_previous_window;
-//         sent_bytes_previous_window = 0;
-//     }
-// }
-
 void LcpSrc::processNack(UecNack &pkt) {
 
     num_trim++;
@@ -967,33 +808,8 @@ void LcpSrc::processNack(UecNack &pkt) {
     acked_bytes += 64;
     saved_trimmed_bytes += 64;
 
-    // printf("Just NA CK from %d at %lu - %d\n", from, eventlist().now() / 1000, pkt.is_failed);
     last_ecn_seen = eventlist().now();
     last_phantom_increase = eventlist().now();
-
-    // resetQACounting();
-
-    if (algorithm_type == "intersmartt" || algorithm_type == "intersmartt_test") {
-        /* printf("Processing Nack - %f %f\n", current_ecn_rate, previous_ecn_rate); */
-        // adjust_window(0, true, 0);
-        /* printf("Exit Processing Nack - %f %f\n", current_ecn_rate, previous_ecn_rate); */
-    }
-
-    // if (eventlist().now() > ignore_for_time) {
-    //     reduce_cwnd(uint64_t(_mss * decrease_on_nack));
-    // }
-
-    // if (use_fast_drop) {
-    //     if (count_received >= ignore_for) {
-    //         if (eventlist().now() > next_qa) {
-    //             need_quick_adapt = true;
-    //             quick_adapt(true);
-    //         }
-    //         if (generic_pacer != NULL) {
-    //             generic_pacer->cancel();
-    //         }
-    //     }
-    // }
 
     if (LCP_USE_QUICK_ADAPT) {
         quick_adapt_drop();
@@ -1493,6 +1309,13 @@ void LcpSrc::fast_increase() {
 void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno) {
 
     if (algorithm_type == "lcp") {
+        if (ecn) {
+            _mprdma_cwnd -= _mss / 2;
+        } else {
+            _mprdma_cwnd += _mss * _mss / _cwnd;
+        }
+
+
         if (rtt >= TARGET_RTT_HIGH) {
             _current_rtt_ewma = rtt;
         } else {
@@ -1516,7 +1339,9 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             fast_increase();
         }
 
-        // cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
+        check_limits_cwnd();
+
+        cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
     } else if (algorithm_type == "lcp-gemini") {
         if (_current_rtt_measurement == timeFromMs(0)) {
             _current_rtt_measurement = rtt;
@@ -1771,7 +1596,7 @@ void LcpSrc::send_packets() {
         uint32_t service_time = q->serviceTime(*p);
         _sent_packets.push_back(LcpSentPacket(eventlist().now() + service_time + _rto, p->seqno(), false, false, false));
 
-        // cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
+        cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
 
         if (generic_pacer != NULL && use_pacing) {
             generic_pacer->just_sent();
@@ -1997,7 +1822,7 @@ bool LcpSrc::resend_packet(std::size_t idx) {
     }
     sent_bytes_previous_window += _mss;
 
-    // cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
+    cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
     return true;
 }
 
@@ -2330,7 +2155,8 @@ LcpEpochAgent::LcpEpochAgent(EventList &event_list, LcpSrc *flow)
         : EventSource(event_list, "window_adjuster"), flow(flow)
         {
     // _next_epoch_time = eventlist().now() + TARGET_RTT_LOW;
-    eventlist().sourceIsPendingRel(*this, TARGET_RTT_LOW);
+    cout << "TRTTLOW: " << TARGET_RTT_LOW << endl;
+    eventlist().sourceIsPendingRel(*this, random() % TARGET_RTT_LOW);
 }
 
 void LcpEpochAgent::doNextEvent() {
@@ -2341,7 +2167,7 @@ void LcpEpochAgent::doNextEvent() {
         flow->quick_adapt(false);
 
         // First make the window adjustment.
-        cout << "TimeEpoch time: " << eventlist().now() / 1000000 << " cwnd: " << flow->_cwnd << endl;
+        cout << "TimeEpoch time: " << eventlist().now() / 1000000 << " cwnd: " << flow->_lcp_cwnd << endl;
 
         if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
             flow->_consecutive_good_epochs++;
@@ -2355,7 +2181,7 @@ void LcpEpochAgent::doNextEvent() {
         int64_t rtt_change = (int64_t) flow->_current_rtt_ewma - (int64_t) flow->_previous_rtt_ewma;
         cout << "Current RTT: " << flow->_current_rtt_ewma << " Previous RTT: " << flow->_previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
 
-        uint32_t cwnd_before = flow->_cwnd;
+        uint32_t cwnd_before = flow->_lcp_cwnd;
 
         if (!flow->_did_qa_this_epoch) {
             // Translate rtt_change into a rate.
@@ -2363,24 +2189,24 @@ void LcpEpochAgent::doNextEvent() {
             cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
             cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
             if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-                flow->_cwnd += (uint32_t)LCP_DELTA;
-                cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_cwnd << endl;
+                flow->_lcp_cwnd += (uint32_t)LCP_DELTA;
+                cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
             } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
-                flow->_cwnd *= 0.5;
+                flow->_lcp_cwnd *= 0.5;
             } else if (gradient <= 0.0) {
-                flow->_cwnd += flow->_mss;
-                cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_cwnd << " delta: " << LCP_DELTA << endl;
+                flow->_lcp_cwnd += flow->_mss;
+                cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " delta: " << LCP_DELTA << endl;
             } else {
                 double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-                flow->_cwnd *= (1 - gradient_change);
-                cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_cwnd << " gradient_change: " << gradient_change << endl;
+                flow->_lcp_cwnd *= (1 - gradient_change);
+                cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
             }
         }
 
         flow->_did_qa_this_epoch = false;
 
         // Reset State.
-        // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
+        cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
         flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
         flow->check_limits_cwnd();
 
@@ -2394,14 +2220,11 @@ void LcpEpochAgent::doNextEvent() {
 
     // Then schedule the next epoch as long as we haven't reached the end.
     if (!flow->_flow_finished) {
-        simtime_picosec time_until_next_epoch = flow->_current_rtt_ewma;
         // Add some random jitter so the flows don't all align. Make it max 1% of the epoch time.
         if (!flow->_current_rtt_ewma == 0) {
-            time_until_next_epoch += (random() % (flow->_current_rtt_ewma / 10));
+            eventlist().sourceIsPendingRel(*this, flow->_current_rtt_ewma);
         } else {
-            time_until_next_epoch += 1000000;
-        
+            eventlist().sourceIsPendingRel(*this, TARGET_RTT_LOW);
         }
-        eventlist().sourceIsPendingRel(*this, time_until_next_epoch);
     }
 }

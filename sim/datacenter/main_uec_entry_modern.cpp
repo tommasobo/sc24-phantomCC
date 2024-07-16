@@ -813,7 +813,7 @@ int main(int argc, char **argv) {
                queue_choice, hop_latency, switch_latency); */
 
             if (topo_file) {
-                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, queuesize, COMPOSITE, FAIR_PRIO);
+                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, queuesize, queuesize, COMPOSITE, FAIR_PRIO);
                 if (top_dc->no_of_nodes() != no_of_nodes) {
                     cerr << "Mismatch between connection matrix (" << no_of_nodes << " nodes) and topology ("
                          << top_dc->no_of_nodes() << " nodes)" << endl;
@@ -821,7 +821,7 @@ int main(int argc, char **argv) {
                 }
             } else {
                 FatTreeInterDCTopology::set_tiers(3);
-                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, queuesize, NULL, &eventlist, NULL,
+                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, queuesize, queuesize, NULL, &eventlist, NULL,
                                                     COMPOSITE, hop_latency, switch_latency, FAIR_PRIO);
             }
         }
@@ -1034,7 +1034,7 @@ int main(int argc, char **argv) {
             FatTreeInterDCTopology::set_bts_threshold(bts_threshold);
             FatTreeInterDCTopology::set_ignore_data_ecn(ignore_ecn_data);
             FatTreeInterDCTopology *top = new FatTreeInterDCTopology(
-                    no_of_nodes, linkspeed, queuesize, NULL, &eventlist, ff, queue_choice, hop_latency, switch_latency);
+                    no_of_nodes, linkspeed, queuesize, queuesize, NULL, &eventlist, ff, queue_choice, hop_latency, switch_latency);
             lgs = new LogSimInterface(NULL, &traffic_logger, eventlist, top, NULL);
         }
 

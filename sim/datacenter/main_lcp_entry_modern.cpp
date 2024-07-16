@@ -899,7 +899,6 @@ int main(int argc, char **argv) {
             lcpSrc->setNumberEntropies(256);
             uec_srcs.push_back(lcpSrc);
 
-            lcpEpochAgent = new LcpEpochAgent(eventlist, lcpSrc);
             uec_agents.push_back(lcpEpochAgent);
             lcpSrc->set_dst(dest);
             printf("Reaching here\n");
@@ -942,83 +941,85 @@ int main(int argc, char **argv) {
             // uecRtxScanner->registerUec(*lcpSrc);
 
             switch (route_strategy) {
-            case ECMP_FIB:
-            case ECMP_FIB_ECN:
-            case ECMP_RANDOM2_ECN:
-            case REACTIVE_ECN: {
-                Route *srctotor = new Route();
-                Route *dsttotor = new Route();
+                case ECMP_FIB:
+                case ECMP_FIB_ECN:
+                case ECMP_RANDOM2_ECN:
+                case REACTIVE_ECN: {
+                    Route *srctotor = new Route();
+                    Route *dsttotor = new Route();
 
-                if (top != NULL) {
-                    srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                    srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                    srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+                    if (top != NULL) {
+                        srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                        srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                        srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
 
-                    dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                    dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                    dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+                        dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                        dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                        dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
 
-                } else if (top_dc != NULL) {
-                    int idx_dc = top_dc->get_dc_id(src);
-                    int idx_dc_to = top_dc->get_dc_id(dest);
-                    lcpSrc->src_dc = top_dc->get_dc_id(src);
-                    lcpSrc->dest_dc = top_dc->get_dc_id(dest);
-                    lcpSrc->updateParams(base_intra_rtt, base_inter_rtt, bdp_intra, bdp_inter, intra_queuesize, inter_queuesize);
+                    } else if (top_dc != NULL) {
+                        int idx_dc = top_dc->get_dc_id(src);
+                        int idx_dc_to = top_dc->get_dc_id(dest);
+                        lcpSrc->src_dc = top_dc->get_dc_id(src);
+                        lcpSrc->dest_dc = top_dc->get_dc_id(dest);
+                        lcpSrc->updateParams(base_intra_rtt, base_inter_rtt, bdp_intra, bdp_inter, intra_queuesize, inter_queuesize);
 
-                    printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+                        printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
 
-                    srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                             [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
-                    srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                            [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
-                    srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                             [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
-                                                                     ->getRemoteEndpoint());
+                        srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                        srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                        srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
+                                                                        ->getRemoteEndpoint());
 
-                    dsttotor->push_back(
-                            top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                 [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
-                    dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                            [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
-                    dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                             [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
-                                                                     ->getRemoteEndpoint());
+                        dsttotor->push_back(
+                                top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                        dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                        dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
+                                                                        ->getRemoteEndpoint());
+                    }
+
+                    lcpSrc->from = src;
+                    lcpSrc->to = dest;
+                    lcpSink->from = src;
+                    lcpSink->to = dest;
+                    printf("Creating2 Flow from %d to %d\n", lcpSrc->from, lcpSrc->to);
+                    lcpSrc->connect(srctotor, dsttotor, *lcpSink, crt->start);
+                    lcpSrc->set_paths(number_entropies);
+                    lcpSink->set_paths(number_entropies);
+
+                    // register src and snk to receive packets src their respective
+                    // TORs.
+                    if (top != NULL) {
+                        top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, lcpSrc->flow_id(), lcpSrc);
+                        top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, lcpSrc->flow_id(), lcpSink);
+                    } else if (top_dc != NULL) {
+                        int idx_dc = top_dc->get_dc_id(src);
+                        int idx_dc_to = top_dc->get_dc_id(dest);
+
+                        top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
+                                src % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSrc);
+                        top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
+                                dest % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSink);
+                    }
+                    break;
                 }
-
-                lcpSrc->from = src;
-                lcpSrc->to = dest;
-                lcpSink->from = src;
-                lcpSink->to = dest;
-                printf("Creating2 Flow from %d to %d\n", lcpSrc->from, lcpSrc->to);
-                lcpSrc->connect(srctotor, dsttotor, *lcpSink, crt->start);
-                lcpSrc->set_paths(number_entropies);
-                lcpSink->set_paths(number_entropies);
-
-                // register src and snk to receive packets src their respective
-                // TORs.
-                if (top != NULL) {
-                    top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, lcpSrc->flow_id(), lcpSrc);
-                    top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, lcpSrc->flow_id(), lcpSink);
-                } else if (top_dc != NULL) {
-                    int idx_dc = top_dc->get_dc_id(src);
-                    int idx_dc_to = top_dc->get_dc_id(dest);
-
-                    top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
-                            src % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSrc);
-                    top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
-                            dest % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSink);
+                case NOT_SET: {
+                    abort();
+                    break;
                 }
-                break;
+                default: {
+                    abort();
+                    break;
+                }
             }
-            case NOT_SET: {
-                abort();
-                break;
-            }
-            default: {
-                abort();
-                break;
-            }
-            }
+
+            lcpEpochAgent = new LcpEpochAgent(eventlist, lcpSrc);
         }
 
         while (eventlist.doNextEvent()) {

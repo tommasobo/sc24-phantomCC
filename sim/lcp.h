@@ -184,6 +184,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _implicit_pulls;
     uint64_t _bounces_received;
     uint32_t _cwnd;
+    uint32_t _lcp_cwnd;
+    uint32_t _mprdma_cwnd;
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
     uint32_t saved_acked_bytes = 0;
@@ -432,6 +434,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, uint64_t>> _list_fast_increase_event;
     vector<pair<simtime_picosec, uint64_t>> _list_medium_increase_event;
     vector<pair<simtime_picosec, uint64_t>> _list_fast_decrease;
+    vector<pair<simtime_picosec, uint64_t>> _list_driving_loop;
     vector<pair<simtime_picosec, int>> us_to_cs;
     vector<pair<simtime_picosec, int>> ls_to_us;
 

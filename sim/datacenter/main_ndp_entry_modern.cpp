@@ -389,10 +389,10 @@ int main(int argc, char **argv) {
             FatTreeInterDCTopology::set_os_stage_1(ratio_os_stage_1);
             FatTreeInterDCTopology::set_ecn_thresholds_as_queue_percentage(kmin, kmax);
             if (topo_file) {
-                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, queuesize, COMPOSITE, FAIR_PRIO);
+                top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, queuesize, queuesize, COMPOSITE, FAIR_PRIO);
             } else {
                 FatTreeInterDCTopology::set_tiers(3);
-                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, queuesize, NULL, &eventlist, NULL,
+                top_dc = new FatTreeInterDCTopology(no_of_nodes, linkspeed, queuesize, queuesize, NULL, &eventlist, NULL,
                                                     COMPOSITE, hop_latency, switch_latency, FAIR_PRIO);
             }
         }
@@ -598,7 +598,7 @@ int main(int argc, char **argv) {
             FatTreeInterDCTopology::set_os_stage_1(ratio_os_stage_1);
             FatTreeInterDCTopology::set_ecn_thresholds_as_queue_percentage(kmin, kmax);
             FatTreeInterDCTopology *top = new FatTreeInterDCTopology(
-                    no_of_nodes, linkspeed, queuesize, NULL, &eventlist, ff, COMPOSITE, hop_latency, switch_latency);
+                    no_of_nodes, linkspeed, queuesize, queuesize, NULL, &eventlist, ff, COMPOSITE, hop_latency, switch_latency);
             lgs = new LogSimInterface(NULL, &traffic_logger, eventlist, top, NULL);
         }
 
