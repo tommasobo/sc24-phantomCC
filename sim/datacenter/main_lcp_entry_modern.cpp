@@ -699,8 +699,7 @@ int main(int argc, char **argv) {
     uint64_t bdp_intra = (uint64_t) ((float)base_intra_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
 
     inter_queuesize = bdp_inter; // Equal to BDP if not other info
-    intra_queuesize = bdp_intra; // Equal to BDP if not other info
-                
+    intra_queuesize = bdp_intra; // Equal to BDP if not other info            
 
     if (queue_size_ratio != 0) {
         inter_queuesize *= queue_size_ratio;

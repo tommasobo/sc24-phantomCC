@@ -18,6 +18,7 @@ from traffic_gen_utils import (
 DEFAULT_LOAD = 0.4
 DEFAULT_BANDWIDTH = "100G"
 DEFAULT_BASE_TIME_S = 0
+DEFAULT_NUM_FLOWS = 5000
 DEFAULT_DURATION_S = 1
 DEFAULT_OUTPUT_FILE_PATH = "cdf_traffic.txt"
 DEFAULT_SEED = None
@@ -77,7 +78,7 @@ def add_commandline_options():
         "-i",
         "--intra_dc_percentage",
         default=None,
-        type=int,
+        type=float,
         help=(
             "Percentage of Traffic Intra DC"
         ),
@@ -108,6 +109,13 @@ def add_commandline_options():
         default=DEFAULT_DURATION_S,
         type=float,
         help=f"The total run time (in s), by default {DEFAULT_DURATION_S}.",
+    )
+    arg_parser.add_argument(
+        "-f",
+        "--total_flows",
+        default=DEFAULT_NUM_FLOWS,
+        type=int,
+        help=f"The total number of flows to generate before stopping, by default {DEFAULT_NUM_FLOWS}.",
     )
     arg_parser.add_argument(
         "-s",
@@ -181,6 +189,7 @@ def main():
     load = args.load
     base_time_ns = args.base_time_s * NS_IN_S
     sim_duration_ns = args.sim_duration_s * NS_IN_S
+    total_flows = args.total_flows
     output_file_path = args.output_file_path
     cdf_file_path = args.cdf_file_path
     seed = args.seed
@@ -235,6 +244,9 @@ def main():
             )
     # Sort the flow list by increasing order of start time.
     flow_list.sort(key=lambda flow: flow.start_time_s)
+
+    # Limit the number of flows to the total_flows.
+    flow_list = flow_list[:total_flows]
 
     # Export flow list to file with the desired format.
     export_flows(nhost, flow_list, output_file_path)

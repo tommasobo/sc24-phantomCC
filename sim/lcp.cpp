@@ -408,9 +408,9 @@ void LcpSrc::update_pacing_delay() {
     // cout << "PaceDelayChange: Last change was " << eventlist().now() - last_pac_change << " ago at " << GLOBAL_TIME / 1000 << endl;
     if (LCP_USE_PACING && is_time_to_update) {
         pacing_delay = (((double)_mss) / (((double)_cwnd) / (_base_rtt / 1000.0))) * (1.0 - LCP_PACING_BONUS);
-        cout << "Base RTT: " << _base_rtt << " at " << GLOBAL_TIME / 1000 << endl;
-        cout << "PaceDelayChange: Setting the pacing delay to: " << pacing_delay << " (ns) at " << GLOBAL_TIME / 1000
-             << " with cwnd: " << _cwnd << " and mss: " << _mss << endl;
+        // cout << "Base RTT: " << _base_rtt << " at " << GLOBAL_TIME / 1000 << endl;
+        // cout << "PaceDelayChange: Setting the pacing delay to: " << pacing_delay << " (ns) at " << GLOBAL_TIME / 1000
+        //      << " with cwnd: " << _cwnd << " and mss: " << _mss << endl;
             pacing_delay *= 1000; // ps
         if (generic_pacer != NULL) {
             generic_pacer->cancel();
@@ -725,7 +725,8 @@ void LcpSrc::reduce_unacked(uint64_t amount) {
 
 void LcpSrc::check_limits_cwnd() {
     // Set the cwnd to the minimum of the two.
-    _cwnd = min(_lcp_cwnd, _mprdma_cwnd);
+    // _cwnd = min(_lcp_cwnd, _mprdma_cwnd);
+    _cwnd = _lcp_cwnd;
 
     if (_lcp_cwnd < _mprdma_cwnd) {
         _list_driving_loop.push_back(std::make_pair(eventlist().now() / 1000, 1));
@@ -1326,7 +1327,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             }
         }
 
-        cout << "rtt: " << rtt << endl;
+        // cout << "rtt: " << rtt << endl;
 
         // printf("\t_current_rtt_ewma: %d _previous_rtt_ewma: %d rtt: %d alpha: %f curackno: %lu\n", _current_rtt_ewma, _previous_rtt_ewma, rtt, LCP_ALPHA, ackno);
 
@@ -1341,7 +1342,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
         check_limits_cwnd();
 
-        cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
+        // cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
     } else if (algorithm_type == "lcp-gemini") {
         if (_current_rtt_measurement == timeFromMs(0)) {
             _current_rtt_measurement = rtt;
@@ -1596,7 +1597,7 @@ void LcpSrc::send_packets() {
         uint32_t service_time = q->serviceTime(*p);
         _sent_packets.push_back(LcpSentPacket(eventlist().now() + service_time + _rto, p->seqno(), false, false, false));
 
-        cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
+        // cout << "DEBUGMSGSENT: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  sent_packet: " << p->seqno() << endl;
 
         if (generic_pacer != NULL && use_pacing) {
             generic_pacer->just_sent();
@@ -1822,7 +1823,7 @@ bool LcpSrc::resend_packet(std::size_t idx) {
     }
     sent_bytes_previous_window += _mss;
 
-    cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
+    // cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;
     return true;
 }
 
@@ -2206,7 +2207,7 @@ void LcpEpochAgent::doNextEvent() {
         flow->_did_qa_this_epoch = false;
 
         // Reset State.
-        cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
+        // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
         flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
         flow->check_limits_cwnd();
 
