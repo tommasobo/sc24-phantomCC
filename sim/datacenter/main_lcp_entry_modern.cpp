@@ -21,6 +21,7 @@
 #include "shortflows.h"
 #include "topology.h"
 #include "lcp.h"
+#include "uec.h"
 #include <filesystem>
 // #include "vl2_topology.h"
 
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
             use_mixed = atoi(argv[i + 1]);
             // LcpSrc::set_use_mixed(use_mixed);
             CompositeQueue::set_use_mixed(use_mixed);
-            printf("UseMixed: %d\n", use_mixed);
+            // printf("UseMixed: %d\n", use_mixed);
             i++;
         } else if (!strcmp(argv[i], "-topo")) {
             topo_file = argv[i + 1];
@@ -201,26 +202,29 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-once_per_rtt")) {
             once_per_rtt = atoi(argv[i + 1]);
             LcpSrc::set_once_per_rtt(once_per_rtt);
-            printf("OnceRTTDecrease: %d\n", once_per_rtt);
+            UecSrc::set_once_per_rtt(once_per_rtt);
+            // printf("OnceRTTDecrease: %d\n", once_per_rtt);
             i++;
         } else if (!strcmp(argv[i], "-stop_pacing_after_rtt")) {
             stop_pacing_after_rtt = atoi(argv[i + 1]);
             LcpSrc::set_stop_pacing(stop_pacing_after_rtt);
+            UecSrc::set_stop_pacing(stop_pacing_after_rtt);
             i++;
         } else if (!strcmp(argv[i], "-linkspeed")) {
             // linkspeed specified is in Mbps
             linkspeed = speedFromMbps(atof(argv[i + 1]));
             LINK_SPEED_MODERN = atoi(argv[i + 1]);
-            printf("Speed is %lu\n", LINK_SPEED_MODERN);
+            cout << "Link speed: " << atof(argv[i + 1]) << " Mbps" << endl;
             LINK_SPEED_MODERN = LINK_SPEED_MODERN / 1000;
             // Saving this for UEC reference, Gbps
             i++;
         } else if (!strcmp(argv[i], "-kmin")) {
             // kmin as percentage of queue size (0..100)
             kmin = atoi(argv[i + 1]);
-            printf("KMin: %d\n", atoi(argv[i + 1]));
+            cout << "KMin: " << atoi(argv[i + 1]) << endl;
             CompositeQueue::set_kMin(kmin);
             LcpSrc::set_kmin(kmin / 100.0);
+            UecSrc::set_kmin(kmin / 100.0);
             i++;
         } else if (!strcmp(argv[i], "-k")) {
             fat_tree_k = atoi(argv[i + 1]);
@@ -228,13 +232,15 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-ratio_os_stage_1")) {
             ratio_os_stage_1 = atoi(argv[i + 1]);
             LcpSrc::set_os_ratio_stage_1(ratio_os_stage_1);
+            UecSrc::set_os_ratio_stage_1(ratio_os_stage_1);
             i++;
         } else if (!strcmp(argv[i], "-kmax")) {
             // kmin as percentage of queue size (0..100)
             kmax = atoi(argv[i + 1]);
-            printf("KMax: %d\n", atoi(argv[i + 1]));
+            cout << "KMax: " << atoi(argv[i + 1]) << endl;
             CompositeQueue::set_kMax(kmax);
             LcpSrc::set_kmax(kmax / 100.0);
+            UecSrc::set_kmax(kmax / 100.0);
             i++;
         } else if (!strcmp(argv[i], "-pfc_marking")) {
             pfc_marking = atoi(argv[i + 1]);
@@ -255,34 +261,41 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-num_periods")) {
             num_periods = atoi(argv[i + 1]);
             LcpSrc::set_frequency(num_periods);
+            UecSrc::set_frequency(num_periods);
             i++;
         } else if (!strcmp(argv[i], "-disable_case_3")) {
             disable_case_3 = atoi(argv[i + 1]);
             LcpSrc::set_disable_case_3(disable_case_3);
-            printf("DisableCase3: %d\n", disable_case_3);
+            UecSrc::set_disable_case_3(disable_case_3);
+            // printf("DisableCase3: %d\n", disable_case_3);
             i++;
         } else if (!strcmp(argv[i], "-jump_to")) {
             LcpSrc::jump_to = atoi(argv[i + 1]);
+            UecSrc::jump_to = atoi(argv[i + 1]);
             i++;
         } else if (!strcmp(argv[i], "-reaction_delay")) {
             reaction_delay = atoi(argv[i + 1]);
             LcpSrc::set_reaction_delay(reaction_delay);
-            printf("ReactionDelay: %d\n", reaction_delay);
+            UecSrc::set_reaction_delay(reaction_delay);
+            // printf("ReactionDelay: %d\n", reaction_delay);
             i++;
         } else if (!strcmp(argv[i], "-precision_ts")) {
             precision_ts = atoi(argv[i + 1]);
             FatTreeSwitch::set_precision_ts(precision_ts * 1000);
             LcpSrc::set_precision_ts(precision_ts * 1000);
-            printf("Precision: %d\n", precision_ts * 1000);
+            UecSrc::set_precision_ts(precision_ts * 1000);
+            // printf("Precision: %d\n", precision_ts * 1000);
             i++;
         } else if (!strcmp(argv[i], "-disable_case_4")) {
             disable_case_4 = atoi(argv[i + 1]);
             LcpSrc::set_disable_case_4(disable_case_4);
-            printf("DisableCase4: %d\n", disable_case_4);
+            UecSrc::set_disable_case_4(disable_case_4);
+            // printf("DisableCase4: %d\n", disable_case_4);
             i++;
         } else if (!strcmp(argv[i], "-stop_after_quick")) {
             LcpSrc::set_stop_after_quick(true);
-            printf("StopAfterQuick: %d\n", true);
+            UecSrc::set_stop_after_quick(true);
+            // printf("StopAfterQuick: %d\n", true);
 
         } else if (!strcmp(argv[i], "-number_entropies")) {
             number_entropies = atoi(argv[i + 1]);
@@ -303,14 +316,17 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-pacing_delay")) {
             pacing_delay = atoi(argv[i + 1]);
             LcpSrc::set_pacing_delay(pacing_delay);
+            UecSrc::set_pacing_delay(pacing_delay);
             i++;
         } else if (!strcmp(argv[i], "-use_pacing")) {
             use_pacing = atoi(argv[i + 1]);
             LcpSrc::set_use_pacing(use_pacing);
+            UecSrc::set_use_pacing(use_pacing);
             i++;
         } else if (!strcmp(argv[i], "-fast_drop")) {
             LcpSrc::set_fast_drop(atoi(argv[i + 1]));
-            printf("FastDrop: %d\n", atoi(argv[i + 1]));
+            UecSrc::set_fast_drop(atoi(argv[i + 1]));
+            // printf("FastDrop: %d\n", atoi(argv[i + 1]));
             i++;
         } else if (!strcmp(argv[i], "-seed")) {
             seed = atoi(argv[i + 1]);
@@ -334,53 +350,59 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-do_jitter")) {
             do_jitter = atoi(argv[i + 1]);
             LcpSrc::set_do_jitter(do_jitter);
-            printf("DoJitter: %d\n", do_jitter);
+            UecSrc::set_do_jitter(do_jitter);
+            // printf("DoJitter: %d\n", do_jitter);
             i++;
         } else if (!strcmp(argv[i], "-do_exponential_gain")) {
             do_exponential_gain = atoi(argv[i + 1]);
             LcpSrc::set_do_exponential_gain(do_exponential_gain);
-            printf("DoExpGain: %d\n", do_exponential_gain);
+            UecSrc::set_do_exponential_gain(do_exponential_gain);
+            // printf("DoExpGain: %d\n", do_exponential_gain);
             i++;
         } else if (!strcmp(argv[i], "-use_fast_increase")) {
             use_fast_increase = atoi(argv[i + 1]);
             LcpSrc::set_use_fast_increase(use_fast_increase);
-            printf("FastIncrease: %d\n", use_fast_increase);
+            UecSrc::set_use_fast_increase(use_fast_increase);
+            // printf("FastIncrease: %d\n", use_fast_increase);
             i++;
         } else if (!strcmp(argv[i], "-use_super_fast_increase")) {
             use_super_fast_increase = atoi(argv[i + 1]);
             LcpSrc::set_use_super_fast_increase(use_super_fast_increase);
-            printf("FastIncreaseSuper: %d\n", use_super_fast_increase);
+            UecSrc::set_use_super_fast_increase(use_super_fast_increase);
+            // printf("FastIncreaseSuper: %d\n", use_super_fast_increase);
             i++;
         } else if (!strcmp(argv[i], "-gain_value_med_inc")) {
             gain_value_med_inc = std::stod(argv[i + 1]);
             // LcpSrc::set_gain_value_med_inc(gain_value_med_inc);
-            printf("GainValueMedIncrease: %f\n", gain_value_med_inc);
+            // printf("GainValueMedIncrease: %f\n", gain_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-jitter_value_med_inc")) {
             jitter_value_med_inc = std::stod(argv[i + 1]);
             // LcpSrc::set_jitter_value_med_inc(jitter_value_med_inc);
-            printf("JitterValue: %f\n", jitter_value_med_inc);
+            // printf("JitterValue: %f\n", jitter_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-decrease_on_nack")) {
             double decrease_on_nack = std::stod(argv[i + 1]);
             LcpSrc::set_decrease_on_nack(decrease_on_nack);
+            UecSrc::set_decrease_on_nack(decrease_on_nack);
             i++;
         } else if (!strcmp(argv[i], "-phantom_in_series")) {
             CompositeQueue::set_use_phantom_in_series();
-            printf("PhantomQueueInSeries: %d\n", 1);
+            // printf("PhantomQueueInSeries: %d\n", 1);
             // i++;
         } else if (!strcmp(argv[i], "-enable_bts")) {
             CompositeQueue::set_bts(true);
             LcpSrc::set_bts(true);
-            printf("BTS: %d\n", 1);
+            UecSrc::set_bts(true);
+            // printf("BTS: %d\n", 1);
             // i++;
         } else if (!strcmp(argv[i], "-phantom_both_queues")) {
             CompositeQueue::set_use_both_queues();
-            printf("PhantomUseBothForECNMarking: %d\n", 1);
+            // printf("PhantomUseBothForECNMarking: %d\n", 1);
         } else if (!strcmp(argv[i], "-delay_gain_value_med_inc")) {
             delay_gain_value_med_inc = std::stod(argv[i + 1]);
             // LcpSrc::set_delay_gain_value_med_inc(delay_gain_value_med_inc);
-            printf("DelayGainValue: %f\n", delay_gain_value_med_inc);
+            // printf("DelayGainValue: %f\n", delay_gain_value_med_inc);
             i++;
         } else if (!strcmp(argv[i], "-tm")) {
             tm_file = argv[i + 1];
@@ -389,7 +411,8 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-target_rtt_percentage_over_base")) {
             target_rtt_percentage_over_base = atoi(argv[i + 1]);
             LcpSrc::set_target_rtt_percentage_over_base(target_rtt_percentage_over_base);
-            printf("TargetRTT: %d\n", target_rtt_percentage_over_base);
+            UecSrc::set_target_rtt_percentage_over_base(target_rtt_percentage_over_base);
+            // printf("TargetRTT: %d\n", target_rtt_percentage_over_base);
             i++;
         } else if (!strcmp(argv[i], "-num_failed_links")) {
             num_failed_links = atoi(argv[i + 1]);
@@ -397,103 +420,117 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-fast_drop_rtt")) {
             LcpSrc::set_fast_drop_rtt(atoi(argv[i + 1]));
+            UecSrc::set_fast_drop_rtt(atoi(argv[i + 1]));
             i++;
         } else if (!strcmp(argv[i], "-y_gain")) {
             y_gain = std::stod(argv[i + 1]);
             LcpSrc::set_y_gain(y_gain);
-            printf("YGain: %f\n", y_gain);
+            UecSrc::set_y_gain(y_gain);
+            // printf("YGain: %f\n", y_gain);
             i++;
         } else if (!strcmp(argv[i], "-x_gain")) {
             x_gain = std::stod(argv[i + 1]);
             LcpSrc::set_x_gain(x_gain);
-            printf("XGain: %f\n", x_gain);
+            UecSrc::set_x_gain(x_gain);
+            // printf("XGain: %f\n", x_gain);
             i++;
         } else if (!strcmp(argv[i], "-z_gain")) {
             z_gain = std::stod(argv[i + 1]);
             LcpSrc::set_z_gain(z_gain);
-            printf("ZGain: %f\n", z_gain);
+            UecSrc::set_z_gain(z_gain);
+            // printf("ZGain: %f\n", z_gain);
             i++;
         } else if (!strcmp(argv[i], "-end_time")) {
             def_end_time = std::stod(argv[i + 1]);
-            printf("def_end_time: %f\n", def_end_time);
+            // printf("def_end_time: %f\n", def_end_time);
             i++;
         } else if (!strcmp(argv[i], "-w_gain")) {
             w_gain = std::stod(argv[i + 1]);
             LcpSrc::set_w_gain(w_gain);
-            printf("WGain: %f\n", w_gain);
+            UecSrc::set_w_gain(w_gain);
+            // printf("WGain: %f\n", w_gain);
             i++;
         } else if (!strcmp(argv[i], "-explicit_starting_cwnd")) {
             explicit_starting_cwnd = atoi(argv[i + 1]);
-            printf("StartingWindowForced: %d\n", explicit_starting_cwnd);
+            // printf("StartingWindowForced: %d\n", explicit_starting_cwnd);
             i++;
         } else if (!strcmp(argv[i], "-starting_cwnd")) {
             actual_starting_cwnd = atoi(argv[i + 1]);
-            printf("StartingWindowForced: %d\n", actual_starting_cwnd);
+            // printf("StartingWindowForced: %d\n", actual_starting_cwnd);
             i++;
         } else if (!strcmp(argv[i], "-explicit_starting_buffer")) {
             explicit_starting_buffer = atoi(argv[i + 1]);
-            printf("StartingBufferForced: %d\n", explicit_starting_buffer);
+            // printf("StartingBufferForced: %d\n", explicit_starting_buffer);
             i++;
         } else if (!strcmp(argv[i], "-explicit_base_rtt")) {
             explicit_base_rtt = ((uint64_t)atoi(argv[i + 1])) * 1000;
-            printf("BaseRTTForced: %d\n", explicit_base_rtt);
+            // printf("BaseRTTForced: %d\n", explicit_base_rtt);
             LcpSrc::set_explicit_rtt(explicit_base_rtt);
+            UecSrc::set_explicit_rtt(explicit_base_rtt);
             i++;
         } else if (!strcmp(argv[i], "-explicit_target_rtt")) {
             explicit_target_rtt = ((uint64_t)atoi(argv[i + 1])) * 1000;
-            printf("TargetRTTForced: %lu\n", explicit_target_rtt);
+            // printf("TargetRTTForced: %lu\n", explicit_target_rtt);
             LcpSrc::set_explicit_target_rtt(explicit_target_rtt);
+            UecSrc::set_explicit_target_rtt(explicit_target_rtt);
             i++;
         } else if (!strcmp(argv[i], "-queue_size_ratio")) {
             queue_size_ratio = std::stod(argv[i + 1]);
-            printf("QueueSizeRatio: %f\n", queue_size_ratio);
+            cout << "QueueSizeRatio: " << queue_size_ratio << endl;
             i++;
         } else if (!strcmp(argv[i], "-bonus_drop")) {
             bonus_drop = std::stod(argv[i + 1]);
             LcpSrc::set_bonus_drop(bonus_drop);
-            printf("BonusDrop: %f\n", bonus_drop);
+            UecSrc::set_bonus_drop(bonus_drop);
+            // printf("BonusDrop: %f\n", bonus_drop);
             i++;
         } else if (!strcmp(argv[i], "-drop_value_buffer")) {
             drop_value_buffer = std::stod(argv[i + 1]);
             LcpSrc::set_buffer_drop(drop_value_buffer);
-            printf("BufferDrop: %f\n", drop_value_buffer);
+            UecSrc::set_buffer_drop(drop_value_buffer);
+            // printf("BufferDrop: %f\n", drop_value_buffer);
             i++;
         } else if (!strcmp(argv[i], "-goal")) {
             goal_filename = argv[i + 1];
             i++;
         } else if (!strcmp(argv[i], "-use_phantom")) {
             use_phantom = atoi(argv[i + 1]);
-            printf("UsePhantomQueue: %d\n", use_phantom);
+            // printf("UsePhantomQueue: %d\n", use_phantom);
             CompositeQueue::set_use_phantom_queue(use_phantom);
             i++;
         } else if (!strcmp(argv[i], "-use_exp_avg_ecn")) {
             use_exp_avg_ecn = atoi(argv[i + 1]);
-            printf("UseExpAvgEcn: %d\n", use_exp_avg_ecn);
+            // printf("UseExpAvgEcn: %d\n", use_exp_avg_ecn);
             LcpSrc::set_exp_avg_ecn(use_exp_avg_ecn);
+            UecSrc::set_exp_avg_ecn(use_exp_avg_ecn);
             i++;
         } else if (!strcmp(argv[i], "-use_exp_avg_rtt")) {
             use_exp_avg_rtt = atoi(argv[i + 1]);
-            printf("UseExpAvgRtt: %d\n", use_exp_avg_rtt);
+            // printf("UseExpAvgRtt: %d\n", use_exp_avg_rtt);
             LcpSrc::set_exp_avg_rtt(use_exp_avg_rtt);
+            UecSrc::set_exp_avg_rtt(use_exp_avg_rtt);
             i++;
         } else if (!strcmp(argv[i], "-exp_avg_rtt_value")) {
             exp_avg_rtt_value = std::stod(argv[i + 1]);
-            printf("UseExpAvgRttValue: %d\n", exp_avg_rtt_value);
+            // printf("UseExpAvgRttValue: %d\n", exp_avg_rtt_value);
             LcpSrc::set_exp_avg_rtt_value(exp_avg_rtt_value);
+            UecSrc::set_exp_avg_rtt_value(exp_avg_rtt_value);
             i++;
         } else if (!strcmp(argv[i], "-exp_avg_ecn_value")) {
             exp_avg_ecn_value = std::stod(argv[i + 1]);
-            printf("UseExpAvgecn_value: %d\n", exp_avg_ecn_value);
+            // printf("UseExpAvgecn_value: %d\n", exp_avg_ecn_value);
             LcpSrc::set_exp_avg_ecn_value(exp_avg_ecn_value);
+            UecSrc::set_exp_avg_ecn_value(exp_avg_ecn_value);
             i++;
         } else if (!strcmp(argv[i], "-exp_avg_alpha")) {
             exp_avg_alpha = std::stod(argv[i + 1]);
-            printf("UseExpAvgalpha: %d\n", exp_avg_alpha);
+            // printf("UseExpAvgalpha: %d\n", exp_avg_alpha);
             LcpSrc::set_exp_avg_alpha(exp_avg_alpha);
+            UecSrc::set_exp_avg_alpha(exp_avg_alpha);
             i++;
         } else if (!strcmp(argv[i], "-phantom_size")) {
             phantom_size = atoi(argv[i + 1]);
-            printf("PhantomQueueSize: %d\n", phantom_size);
+            // printf("PhantomQueueSize: %d\n", phantom_size);
             CompositeQueue::set_phantom_queue_size(phantom_size);
             i++;
         } else if (!strcmp(argv[i], "-os_border")) {
@@ -502,7 +539,7 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-phantom_slowdown")) {
             phantom_slowdown = atoi(argv[i + 1]);
-            printf("PhantomQueueSize: %d\n", phantom_slowdown);
+            // printf("PhantomQueueSize: %d\n", phantom_slowdown);
             CompositeQueue::set_phantom_queue_slowdown(phantom_slowdown);
             i++;
         } else if (!strcmp(argv[i], "-strat")) {
@@ -539,70 +576,17 @@ int main(int argc, char **argv) {
             if (!strcmp(argv[i + 1], "composite")) {
                 queue_choice = COMPOSITE;
                 LcpSrc::set_queue_type("composite");
+                UecSrc::set_queue_type("composite");
             } else if (!strcmp(argv[i + 1], "composite_bts")) {
                 queue_choice = COMPOSITE_BTS;
                 LcpSrc::set_queue_type("composite_bts");
+                UecSrc::set_queue_type("composite_bts");
                 printf("Name Running: UEC BTS\n");
             } else if (!strcmp(argv[i + 1], "lossless_input")) {
                 queue_choice = LOSSLESS_INPUT;
                 LcpSrc::set_queue_type("lossless_input");
+                UecSrc::set_queue_type("lossless_input");
                 printf("Name Running: UEC Queueless\n");
-            }
-            i++;
-        } else if (!strcmp(argv[i], "-algorithm")) {
-            if (!strcmp(argv[i + 1], "delayA")) {
-                LcpSrc::set_alogirthm("delayA");
-                printf("Name Running: UEC Version A\n");
-            } else if (!strcmp(argv[i + 1], "smartt")) {
-                LcpSrc::set_alogirthm("smartt");
-                printf("Name Running: SMaRTT\n");
-            } else if (!strcmp(argv[i + 1], "mprdma")) {
-                LcpSrc::set_alogirthm("mprdma");
-                printf("Name Running: SMaRTT Per RTT\n");
-            } else if (!strcmp(argv[i + 1], "mprdma2")) {
-                LcpSrc::set_alogirthm("mprdma2");
-            } else if (!strcmp(argv[i + 1], "mprdma3")) {
-                LcpSrc::set_alogirthm("mprdma3");
-                printf("Name Running: STrack\n");
-            } else if (!strcmp(argv[i + 1], "standard_trimming")) {
-                LcpSrc::set_alogirthm("standard_trimming");
-                printf("Name Running: UEC Version D\n");
-            } else if (!strcmp(argv[i + 1], "rtt")) {
-                LcpSrc::set_alogirthm("rtt");
-                printf("Name Running: SMaRTT RTT Only\n");
-            } else if (!strcmp(argv[i + 1], "ecn")) {
-                LcpSrc::set_alogirthm("ecn");
-                printf("Name Running: SMaRTT ECN Only Constant\n");
-            } else if (!strcmp(argv[i + 1], "custom")) {
-                LcpSrc::set_alogirthm("custom");
-                printf("Name Running: SMaRTT ECN Only Variable\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt")) {
-                LcpSrc::set_alogirthm("intersmartt");
-                printf("Name Running: SMaRTT InterDataCenter\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt_new")) {
-                LcpSrc::set_alogirthm("intersmartt_new");
-                printf("Name Running: SMaRTT InterDataCenter\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt_simple")) {
-                LcpSrc::set_alogirthm("intersmartt_simple");
-                printf("Name Running: SMaRTT InterDataCenter\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt")) {
-                LcpSrc::set_alogirthm("intersmartt");
-                printf("Name Running: SMaRTT InterDataCenter\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt_composed")) {
-                LcpSrc::set_alogirthm("intersmartt_composed");
-                printf("Name Running: SMaRTT InterDataCenter\n");
-            } else if (!strcmp(argv[i + 1], "intersmartt_test")) {
-                LcpSrc::set_alogirthm("intersmartt_test");
-                printf("Name Running: SMaRTT smartt_2\n");
-            } else if (!strcmp(argv[i + 1], "lcp")) {
-                LcpSrc::set_alogirthm("lcp");
-                printf("Name Running: LCP\n");
-            } else if (!strcmp(argv[i + 1], "lcp-gemini")) {
-                LcpSrc::set_alogirthm("lcp-gemini");
-                printf("Name Running: LCP Gemini\n");
-            } else {
-                printf("Wrong Algorithm Name\n");
-                exit(0);
             }
             i++;
         } else if (!strcmp(argv[i], "-target-low-us")) {
@@ -654,6 +638,9 @@ int main(int argc, char **argv) {
         i++;
     }
 
+    LcpSrc::set_alogirthm("lcp");
+    UecSrc::set_alogirthm("mprdma");
+
     SINGLE_PKT_TRASMISSION_TIME_MODERN = packet_size * 8 / (LINK_SPEED_MODERN);
 
     // Initialize Seed, Logging and Other variables
@@ -677,6 +664,7 @@ int main(int argc, char **argv) {
         LosslessInputQueue::_mark_pfc_amount = pfc_marking;
     }
     LcpSrc::set_quickadapt_lossless_rtt(quickadapt_lossless_rtt);
+    UecSrc::set_quickadapt_lossless_rtt(quickadapt_lossless_rtt);
 
     if (route_strategy == NOT_SET) {
         fprintf(stderr, "Route Strategy not set.  Use the -strat param.  "
@@ -740,7 +728,9 @@ int main(int argc, char **argv) {
     // LcpSink *lcpSink;
 
     LcpSrc::setRouteStrategy(route_strategy);
+    UecSrc::setRouteStrategy(route_strategy);
     LcpSink::setRouteStrategy(route_strategy);
+    UecSink::setRouteStrategy(route_strategy);
 
     // Route *routeout, *routein;
     // double extrastarttime;
@@ -868,166 +858,295 @@ int main(int argc, char **argv) {
 
         map<flowid_t, TriggerTarget *> flowmap;
         vector<connection *> *all_conns = conns->getAllConnections();
-        vector<LcpSrc *> uec_srcs;
-        vector<LcpEpochAgent *> uec_agents;
+        vector<UecSrc *> intra_srcs;
+        vector<LcpSrc *> inter_srcs;
+        vector<LcpEpochAgent *> inter_agents;
         LcpSrc *lcpSrc;
         LcpSink *lcpSink;
+        UecSrc *uecSrc;
+        UecSink *uecSink;
         LcpEpochAgent *lcpEpochAgent;
 
         for (size_t c = 0; c < all_conns->size(); c++) {
             connection *crt = all_conns->at(c);
             int src = crt->src;
             int dest = crt->dst;
+            int src_dc = top_dc->get_dc_id(src);
+            int dest_dc = top_dc->get_dc_id(dest);
+
             uint64_t rtt = BASE_RTT_MODERN * 1000;
             uint64_t bdp = BDP_MODERN_UEC;
+
             printf("Reaching here1\n");
             fflush(stdout);
-
-            // /* Route *myin = new Route(*top->get_paths(src, dest)->at(0));
-            // int hops = myin->hop_count(); // hardcoded for now */
-            // uint64_t base_rtt_max_hops = (hops * LINK_DELAY_MODERN) + (PKT_SIZE_MODERN * 8 / LINK_SPEED_MODERN * hops) +
-            //                              (hops * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * hops);
-            // uint64_t bdp_local = base_rtt_max_hops * LINK_SPEED_MODERN / 8;
-
-            LcpSrc::set_starting_cwnd(actual_starting_cwnd);
             printf("Setting CWND to %lu\n", actual_starting_cwnd);
 
-            // printf("Using BDP of %lu - Queue is %lld - Starting Window is %lu\n", bdp_local, queuesize,
-            //        actual_starting_cwnd);
+            if (src_dc != dest_dc) {
+                LcpSrc::set_starting_cwnd(actual_starting_cwnd);
 
-            lcpSrc = new LcpSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
+                lcpSrc = new LcpSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
 
-            lcpSrc->setNumberEntropies(256);
-            uec_srcs.push_back(lcpSrc);
+                lcpSrc->setNumberEntropies(256);
+                inter_srcs.push_back(lcpSrc);
 
-            uec_agents.push_back(lcpEpochAgent);
-            lcpSrc->set_dst(dest);
-            printf("Reaching here\n");
-            if (crt->flowid) {
-                lcpSrc->set_flowid(crt->flowid);
-                assert(flowmap.find(crt->flowid) == flowmap.end()); // don't have dups
-                flowmap[crt->flowid] = lcpSrc;
-            }
+                lcpSrc->set_dst(dest);
+                printf("Reaching here\n");
+                if (crt->flowid) {
+                    lcpSrc->set_flowid(crt->flowid);
+                    assert(flowmap.find(crt->flowid) == flowmap.end()); // don't have dups
+                    flowmap[crt->flowid] = lcpSrc;
+                }
 
-            if (crt->size > 0) {
-                lcpSrc->setFlowSize(crt->size);
-            }
+                if (crt->size > 0) {
+                    lcpSrc->setFlowSize(crt->size);
+                }
 
-            if (crt->trigger) {
-                Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
-                trig->add_target(*lcpSrc);
-            }
-            if (crt->send_done_trigger) {
-                Trigger *trig = conns->getTrigger(crt->send_done_trigger, eventlist);
-                lcpSrc->set_end_trigger(*trig);
-            }
+                if (crt->trigger) {
+                    Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
+                    trig->add_target(*lcpSrc);
+                }
+                if (crt->send_done_trigger) {
+                    Trigger *trig = conns->getTrigger(crt->send_done_trigger, eventlist);
+                    lcpSrc->set_end_trigger(*trig);
+                }
 
-            lcpSink = new LcpSink();
+                lcpSink = new LcpSink();
 
-            lcpSrc->setName("uec_" + ntoa(src) + "_" + ntoa(dest));
+                lcpSrc->setName("lcp_" + ntoa(src) + "_" + ntoa(dest));
 
-            cout << "uec_" + ntoa(src) + "_" + ntoa(dest) << endl;
-            logfile.writeName(*lcpSrc);
+                cout << "lcp_" + ntoa(src) + "_" + ntoa(dest) << endl;
+                logfile.writeName(*lcpSrc);
 
-            lcpSink->set_src(src);
+                lcpSink->set_src(src);
 
-            lcpSink->setName("uec_sink_" + ntoa(src) + "_" + ntoa(dest));
-            logfile.writeName(*lcpSink);
-            if (crt->recv_done_trigger) {
-                Trigger *trig = conns->getTrigger(crt->recv_done_trigger, eventlist);
-                lcpSink->set_end_trigger(*trig);
-            }
+                lcpSink->setName("lcp_sink_" + ntoa(src) + "_" + ntoa(dest));
+                logfile.writeName(*lcpSink);
+                if (crt->recv_done_trigger) {
+                    Trigger *trig = conns->getTrigger(crt->recv_done_trigger, eventlist);
+                    lcpSink->set_end_trigger(*trig);
+                }
 
-            // lcpEpochAgent->doNextEvent();
-            // uecRtxScanner->registerUec(*lcpSrc);
+                // lcpEpochAgent->doNextEvent();
+                // uecRtxScanner->registerUec(*lcpSrc);
 
-            switch (route_strategy) {
-                case ECMP_FIB:
-                case ECMP_FIB_ECN:
-                case ECMP_RANDOM2_ECN:
-                case REACTIVE_ECN: {
-                    Route *srctotor = new Route();
-                    Route *dsttotor = new Route();
+                switch (route_strategy) {
+                    case ECMP_FIB:
+                    case ECMP_FIB_ECN:
+                    case ECMP_RANDOM2_ECN:
+                    case REACTIVE_ECN: {
+                        Route *srctotor = new Route();
+                        Route *dsttotor = new Route();
 
-                    if (top != NULL) {
-                        srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                        srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
-                        srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+                        if (top != NULL) {
+                            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
 
-                        dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                        dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
-                        dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+                            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
 
-                    } else if (top_dc != NULL) {
-                        int idx_dc = top_dc->get_dc_id(src);
-                        int idx_dc_to = top_dc->get_dc_id(dest);
-                        lcpSrc->src_dc = top_dc->get_dc_id(src);
-                        lcpSrc->dest_dc = top_dc->get_dc_id(dest);
-                        lcpSrc->updateParams(base_intra_rtt, base_inter_rtt, bdp_intra, bdp_inter, intra_queuesize, inter_queuesize);
+                        } else if (top_dc != NULL) {
+                            int idx_dc = top_dc->get_dc_id(src);
+                            int idx_dc_to = top_dc->get_dc_id(dest);
+                            lcpSrc->src_dc = top_dc->get_dc_id(src);
+                            lcpSrc->dest_dc = top_dc->get_dc_id(dest);
+                            lcpSrc->updateParams(base_intra_rtt, base_inter_rtt, bdp_intra, bdp_inter, intra_queuesize, inter_queuesize);
 
-                        printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+                            printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
 
-                        srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
-                        srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
-                        srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
-                                                                [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
-                                                                        ->getRemoteEndpoint());
+                            srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                            srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                            srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
+                                                                            ->getRemoteEndpoint());
 
-                        dsttotor->push_back(
-                                top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
-                        dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                                [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
-                        dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
-                                                                [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
-                                                                        ->getRemoteEndpoint());
+                            dsttotor->push_back(
+                                    top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                        [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                            dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                            dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
+                                                                            ->getRemoteEndpoint());
+                        }
+
+                        lcpSrc->from = src;
+                        lcpSrc->to = dest;
+                        lcpSink->from = src;
+                        lcpSink->to = dest;
+                        printf("Creating2 Flow from %d to %d\n", lcpSrc->from, lcpSrc->to);
+                        lcpSrc->connect(srctotor, dsttotor, *lcpSink, crt->start);
+                        lcpSrc->set_paths(number_entropies);
+                        lcpSink->set_paths(number_entropies);
+
+                        // register src and snk to receive packets src their respective
+                        // TORs.
+                        if (top != NULL) {
+                            top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, lcpSrc->flow_id(), lcpSrc);
+                            top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, lcpSrc->flow_id(), lcpSink);
+                        } else if (top_dc != NULL) {
+                            int idx_dc = top_dc->get_dc_id(src);
+                            int idx_dc_to = top_dc->get_dc_id(dest);
+
+                            top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
+                                    src % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSrc);
+                            top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
+                                    dest % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSink);
+                        }
+                        break;
                     }
-
-                    lcpSrc->from = src;
-                    lcpSrc->to = dest;
-                    lcpSink->from = src;
-                    lcpSink->to = dest;
-                    printf("Creating2 Flow from %d to %d\n", lcpSrc->from, lcpSrc->to);
-                    lcpSrc->connect(srctotor, dsttotor, *lcpSink, crt->start);
-                    lcpSrc->set_paths(number_entropies);
-                    lcpSink->set_paths(number_entropies);
-
-                    // register src and snk to receive packets src their respective
-                    // TORs.
-                    if (top != NULL) {
-                        top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, lcpSrc->flow_id(), lcpSrc);
-                        top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, lcpSrc->flow_id(), lcpSink);
-                    } else if (top_dc != NULL) {
-                        int idx_dc = top_dc->get_dc_id(src);
-                        int idx_dc_to = top_dc->get_dc_id(dest);
-
-                        top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
-                                src % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSrc);
-                        top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
-                                dest % top_dc->no_of_nodes(), lcpSrc->flow_id(), lcpSink);
+                    case NOT_SET: {
+                        abort();
+                        break;
                     }
-                    break;
+                    default: {
+                        abort();
+                        break;
+                    }
                 }
-                case NOT_SET: {
-                    abort();
-                    break;
+
+                lcpEpochAgent = new LcpEpochAgent(eventlist, lcpSrc);
+                inter_agents.push_back(lcpEpochAgent);
+            } else {
+                UecSrc::set_starting_cwnd(actual_starting_cwnd);
+
+                uecSrc = new UecSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
+
+                uecSrc->setNumberEntropies(256);
+                intra_srcs.push_back(uecSrc);
+
+                uecSrc->set_dst(dest);
+                printf("Reaching here\n");
+                if (crt->flowid) {
+                    uecSrc->set_flowid(crt->flowid);
+                    assert(flowmap.find(crt->flowid) == flowmap.end()); // don't have dups
+                    flowmap[crt->flowid] = uecSrc;
                 }
-                default: {
-                    abort();
-                    break;
+
+                if (crt->size > 0) {
+                    uecSrc->setFlowSize(crt->size);
+                }
+
+                if (crt->trigger) {
+                    Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
+                    trig->add_target(*uecSrc);
+                }
+                if (crt->send_done_trigger) {
+                    Trigger *trig = conns->getTrigger(crt->send_done_trigger, eventlist);
+                    uecSrc->set_end_trigger(*trig);
+                }
+
+                uecSink = new UecSink();
+
+                uecSrc->setName("uec_" + ntoa(src) + "_" + ntoa(dest));
+
+                cout << "uec_" + ntoa(src) + "_" + ntoa(dest) << endl;
+                logfile.writeName(*uecSrc);
+
+                uecSink->set_src(src);
+
+                uecSink->setName("uec_sink_" + ntoa(src) + "_" + ntoa(dest));
+                logfile.writeName(*uecSink);
+                if (crt->recv_done_trigger) {
+                    Trigger *trig = conns->getTrigger(crt->recv_done_trigger, eventlist);
+                    uecSink->set_end_trigger(*trig);
+                }
+
+                // uecEpochAgent->doNextEvent();
+                // uecRtxScanner->registerUec(*uecSrc);
+
+                switch (route_strategy) {
+                    case ECMP_FIB:
+                    case ECMP_FIB_ECN:
+                    case ECMP_RANDOM2_ECN:
+                    case REACTIVE_ECN: {
+                        Route *srctotor = new Route();
+                        Route *dsttotor = new Route();
+
+                        if (top != NULL) {
+                            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                            srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                            srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+
+                            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                            dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                            dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+
+                        } else if (top_dc != NULL) {
+                            int idx_dc = top_dc->get_dc_id(src);
+                            int idx_dc_to = top_dc->get_dc_id(dest);
+                            uecSrc->src_dc = top_dc->get_dc_id(src);
+                            uecSrc->dest_dc = top_dc->get_dc_id(dest);
+                            uecSrc->updateParams();
+
+                            printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+
+                            srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                            srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                            srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
+                                                                            ->getRemoteEndpoint());
+
+                            dsttotor->push_back(
+                                    top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                        [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                            dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                            dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                    [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
+                                                                            ->getRemoteEndpoint());
+                        }
+
+                        uecSrc->from = src;
+                        uecSrc->to = dest;
+                        uecSink->from = src;
+                        uecSink->to = dest;
+                        printf("Creating2 Flow from %d to %d\n", uecSrc->from, uecSrc->to);
+                        uecSrc->connect(srctotor, dsttotor, *uecSink, crt->start);
+                        uecSrc->set_paths(number_entropies);
+                        uecSink->set_paths(number_entropies);
+
+                        // register src and snk to receive packets src their respective
+                        // TORs.
+                        if (top != NULL) {
+                            top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, uecSrc->flow_id(), uecSrc);
+                            top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, uecSrc->flow_id(), uecSink);
+                        } else if (top_dc != NULL) {
+                            int idx_dc = top_dc->get_dc_id(src);
+                            int idx_dc_to = top_dc->get_dc_id(dest);
+
+                            top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
+                                    src % top_dc->no_of_nodes(), uecSrc->flow_id(), uecSrc);
+                            top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
+                                    dest % top_dc->no_of_nodes(), uecSrc->flow_id(), uecSink);
+                        }
+                        break;
+                    }
+                    case NOT_SET: {
+                        abort();
+                        break;
+                    }
+                    default: {
+                        abort();
+                        break;
+                    }
                 }
             }
-
-            lcpEpochAgent = new LcpEpochAgent(eventlist, lcpSrc);
         }
 
         while (eventlist.doNextEvent()) {
         }
 
-        for (std::size_t i = 0; i < uec_srcs.size(); ++i) {
-            delete uec_srcs[i];
+        for (std::size_t i = 0; i < inter_srcs.size(); ++i) {
+            delete inter_srcs[i];
+        }
+        for (std::size_t i = 0; i < intra_srcs.size(); ++i) {
+            delete intra_srcs[i];
         }
 
     } else if (goal_filename.size() > 0) {
