@@ -156,7 +156,11 @@ void initializeLoggingFolders() {
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/cmd/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/unacked/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/fct/");
-    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/driving_loop/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/dual_congested/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/ecn_congested/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/rtt_congested/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/ecn_fraction/");
+
 
     bool ret_val = std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/rtt");
@@ -192,7 +196,10 @@ void initializeLoggingFolders() {
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/cmd");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/unacked");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/fct");
-    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/driving_loop");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/dual_congested");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/ecn_congested");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/rtt_congested");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/ecn_fraction");
 }
 
 // Path

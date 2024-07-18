@@ -156,6 +156,9 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     saved_acked_bytes = 0;
     _first_qa_measurement = true;
     _did_qa_this_epoch = false;
+    _ecn_fraction_ewma = 0;
+    _ecn_count_this_window = 0;
+    _good_count_this_window = 0;
 
     // LCP gemini.
     _next_window_seq_no = 0;
@@ -203,6 +206,47 @@ LcpSrc::~LcpSrc() {
         for (const auto &p : _list_current_rtt_ewma) {
             MyFileRTTEWMA << p.first << "," << p.second << std::endl;
         }
+
+        // DUAL CONGESTED.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/dual_congested/dual_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileDualCongested(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_is_dual_congested) {
+            MyFileDualCongested << p << std::endl;
+        }
+
+        MyFileDualCongested.close();
+
+        // ECN Congested.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_congested/ecn_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileEcnCongested(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_is_ecn_congested) {
+            MyFileEcnCongested << p << std::endl;
+        }
+
+        MyFileEcnCongested.close();
+
+        // RTT congested.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/rtt_congested/rtt_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileRttCongested(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_is_rtt_congested) {
+            MyFileRttCongested << p << std::endl;
+        }
+
+        MyFileRttCongested.close();
+
+        // ECN fraction.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_fraction/ecn_fraction" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileEcnFraction(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_ecn_fraction) {
+            MyFileEcnFraction << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileEcnFraction.close();
+
 
         MyFileRTTEWMA.close();
 
@@ -1311,11 +1355,10 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
     if (algorithm_type == "lcp") {
         if (ecn) {
-            _mprdma_cwnd -= _mss / 2;
+            _ecn_count_this_window++;
         } else {
-            _mprdma_cwnd += _mss * _mss / _cwnd;
+            _good_count_this_window++;
         }
-
 
         if (rtt >= TARGET_RTT_HIGH) {
             _current_rtt_ewma = rtt;
@@ -2161,58 +2204,131 @@ LcpEpochAgent::LcpEpochAgent(EventList &event_list, LcpSrc *flow)
 }
 
 void LcpEpochAgent::doNextEvent() {
-    // if (flow->_flow_start_time != 0) {
-    // if (flow->_flow_start_time != 0 && eventlist().now() - flow->_flow_start_time >= TARGET_RTT_LOW) {
-    // cout << "Highest sent: " << flow->_highest_sent << " Total ACK: " << flow->count_total_ack << " Time: " << eventlist().now() / 1000000 << " Flow finished: " << flow->_flow_finished << endl;
-    if (flow->_highest_sent > 0 && flow->count_total_ack > 0) {
-        flow->quick_adapt(false);
+    if (flow->_highest_sent > 0 && flow->count_total_ack > 0 && flow->_good_count_this_window + flow->_ecn_count_this_window > 0) {
+        flow->quick_adapt(false); // Update QA state.
 
-        // First make the window adjustment.
-        cout << "TimeEpoch time: " << eventlist().now() / 1000000 << " cwnd: " << flow->_lcp_cwnd << endl;
+        // Update ECN state.
+        float new_ecn_fraction = (float) flow->_ecn_count_this_window / ((float) flow->_good_count_this_window + (float) flow->_ecn_count_this_window);
+        flow->_ecn_fraction_ewma = flow->_ecn_fraction_ewma * (1.0 - LCP_ECN_ALPHA) + new_ecn_fraction * LCP_ECN_ALPHA;
 
-        if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-            flow->_consecutive_good_epochs++;
+        // Calculate the ECN reduction.
+        bool is_ecn_congested = flow->_ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD && LCP_USE_ECN;
+        float k = flow->kmin_double * (float) flow->_bdp;
+        float F = 4.0 * k / ((float) flow->_bdp + k);
+        float ecn_reduction;
+        if (is_ecn_congested) {
+            ecn_reduction = flow->_ecn_fraction_ewma * F;
         } else {
-            flow->_consecutive_good_epochs = 0;
+            ecn_reduction = 0.0;
         }
-
+        
+        // Calculate the RTT reduction.
         if (flow->_previous_rtt_ewma == timeFromMs(0)) {
             flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
         }
+        bool is_rtt_congested = false;
+        float rtt_reduction = 0.0;
         int64_t rtt_change = (int64_t) flow->_current_rtt_ewma - (int64_t) flow->_previous_rtt_ewma;
         cout << "Current RTT: " << flow->_current_rtt_ewma << " Previous RTT: " << flow->_previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
+        double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+        if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
+            rtt_reduction = 0.5;
+            is_rtt_congested = true;
+        } else if (flow->_current_rtt_ewma > TARGET_RTT_LOW && gradient > 0.0) {
+            double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+            rtt_reduction = gradient_change;
+            is_rtt_congested = true;
+        }
 
-        uint32_t cwnd_before = flow->_lcp_cwnd;
+        if (!flow->_did_qa_this_epoch) { // Only change CWND if we haven't already done so this epoch.
+            uint32_t cwnd_before = flow->_lcp_cwnd;
 
-        if (!flow->_did_qa_this_epoch) {
-            // Translate rtt_change into a rate.
-            double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-            cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-            cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-            if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-                flow->_lcp_cwnd += (uint32_t)LCP_DELTA;
-                cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
-            } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
-                flow->_lcp_cwnd *= 0.5;
-            } else if (gradient <= 0.0) {
-                flow->_lcp_cwnd += flow->_mss;
-                cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " delta: " << LCP_DELTA << endl;
-            } else {
-                double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-                flow->_lcp_cwnd *= (1 - gradient_change);
-                cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
+            if (is_ecn_congested || is_rtt_congested) { // If congested reduce based on max.
+                float max_reduction = max(ecn_reduction, rtt_reduction);
+                flow->_lcp_cwnd *= (1.0 - max_reduction);
+                flow->_consecutive_good_epochs = 0;
+
+                cout << "    CWND change: " << flow->nodename() << " congested from " << flow->_lcp_cwnd << " to " <<
+                        flow->_lcp_cwnd * (1.0 - max_reduction) << " max_reduction: " << max_reduction <<
+                        " ecn_reduction: " << ecn_reduction << " rtt_reduction: " << rtt_reduction <<
+                        " is_ecn_congested: " << is_ecn_congested << " is_rtt_congested: " << is_rtt_congested << endl;
+
+                // Log the congestion type.
+                if (is_ecn_congested && is_rtt_congested) {
+                    flow->_list_is_dual_congested.push_back(eventlist().now() / 1000);
+                } else if (is_ecn_congested) {
+                    flow->_list_is_ecn_congested.push_back(eventlist().now() / 1000);
+                } else if (is_rtt_congested) {
+                    flow->_list_is_rtt_congested.push_back(eventlist().now() / 1000);
+                }
+            } else { // If not congested increase.
+                flow->_consecutive_good_epochs++;
+
+                // Increase the window.
+                if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
+                    flow->_lcp_cwnd += (uint32_t) LCP_DELTA;
+                    
+                    cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
+                } else {
+                    double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+                    flow->_lcp_cwnd *= (1 - gradient_change);
+
+                    cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
+                }
             }
         }
 
-        flow->_did_qa_this_epoch = false;
+        
 
-        // Reset State.
-        // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
+        // Reset all state for next time.
+        flow->_did_qa_this_epoch = false;
+        flow->_good_count_this_window = 0;
+        flow->_ecn_count_this_window = 0;
         flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
-        flow->check_limits_cwnd();
+
+
+        // if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
+        //     flow->_consecutive_good_epochs++;
+        // } else {
+        //     flow->_consecutive_good_epochs = 0;
+        // }
+
+        // if (flow->_previous_rtt_ewma == timeFromMs(0)) {
+        //     flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
+        // }
+
+        // uint32_t cwnd_before = flow->_lcp_cwnd;
+
+        // if (!flow->_did_qa_this_epoch) {
+        //     // Translate rtt_change into a rate.
+        //     double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+        //     cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
+        //     cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
+        //     if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
+        //         flow->_lcp_cwnd += (uint32_t)LCP_DELTA;
+        //         cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
+        //     } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
+        //         flow->_lcp_cwnd *= 0.5;
+        //     } else if (gradient <= 0.0) {
+        //         flow->_lcp_cwnd += flow->_mss;
+        //         cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " delta: " << LCP_DELTA << endl;
+        //     } else {
+        //         double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
+        //         flow->_lcp_cwnd *= (1 - gradient_change);
+        //         cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
+        //     }
+        // }
+
+        // flow->_did_qa_this_epoch = false;
+
+        // // Reset State.
+        // // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
+        // flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
+        // flow->check_limits_cwnd();
 
         if (COLLECT_DATA) {
             flow->_list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, flow->_current_rtt_ewma / 1000));
+            flow->_list_ecn_fraction.push_back(std::make_pair(eventlist().now() / 1000, flow->_ecn_fraction_ewma));
             flow->_list_target_rtt_low.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_LOW / 1000));
             flow->_list_target_rtt_high.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_HIGH / 1000));
             flow->_list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT / 1000));

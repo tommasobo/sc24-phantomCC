@@ -328,10 +328,17 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     simtime_picosec _time_of_last_qa;
     bool _first_qa_measurement;
     vector<pair<simtime_picosec, uint64_t>> _list_current_rtt_ewma;
+    vector<pair<simtime_picosec, uint64_t>> _list_ecn_fraction;
     vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_low;
     vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_high;
     vector<pair<simtime_picosec, uint64_t>> _list_baremetal_latency;
+    vector<simtime_picosec> _list_is_rtt_congested;
+    vector<simtime_picosec> _list_is_ecn_congested;
+    vector<simtime_picosec> _list_is_dual_congested;
     bool _did_qa_this_epoch;
+    float _ecn_fraction_ewma;
+    float _ecn_count_this_window;
+    float _good_count_this_window;
 
     // LCP-Gemini.
     uint64_t _next_window_seq_no;
@@ -339,6 +346,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
 
     uint16_t _mss;
     bool _flow_finished = false;
+    uint64_t _bdp;
 
   private:
     uint32_t _unacked;
@@ -359,7 +367,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     // new CC variables
     uint64_t _target_rtt;
     simtime_picosec _base_rtt; // Picoseconds.
-    uint64_t _bdp;
     uint64_t _queue_size;
     uint32_t _consecutive_low_rtt;
     uint32_t _consecutive_no_ecn;

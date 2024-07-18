@@ -62,6 +62,9 @@ extern bool LCP_USE_FAST_INCREASE;
 extern double LCP_PACING_BONUS;
 extern bool LCP_USE_MIN_RTT;
 extern bool LCP_USE_AGGRESSIVE_DECREASE;
+extern float LCP_ECN_ALPHA;
+extern float LCP_ECN_FRACTION_THRESHOLD;
+extern bool LCP_USE_ECN;
 // LCP-Gemini
 extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
 extern double LCP_GEMINI_H;

@@ -106,6 +106,8 @@ class FatTreeInterDCTopology : public Topology {
     BaseQueue *alloc_queue(QueueLogger *q, mem_b queuesize, link_direction dir, int switch_tier, bool tor);
     BaseQueue *alloc_queue(QueueLogger *q, uint64_t speed, mem_b queuesize, link_direction dir, int switch_tier,
                            bool tor);
+    BaseQueue *alloc_queue_no_ecn(QueueLogger *q, uint64_t speed, mem_b queuesize, link_direction dir, int switch_tier,
+                           bool tor);
     static void set_tiers(uint32_t tiers) { _tiers = tiers; }
     static void set_interdc_delay(uint64_t delay) { _interdc_delay = delay; }
     static void set_os_stage_2(uint32_t os) { _os = os; }

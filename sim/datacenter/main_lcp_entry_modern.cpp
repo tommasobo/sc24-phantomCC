@@ -639,6 +639,8 @@ int main(int argc, char **argv) {
             LCP_USE_QUICK_ADAPT = false;
         } else if (!strcmp(argv[i], "-no-fi")) {
             LCP_USE_FAST_INCREASE = false;
+        } else if (!strcmp(argv[i], "-no-ecn")) {
+            LCP_USE_ECN = false;
         } else if (!strcmp(argv[i], "-no-pacing")) {
             LCP_USE_PACING = false;
         } else if (!strcmp(argv[i], "-use-min")) {

@@ -73,6 +73,9 @@ bool LCP_USE_FAST_INCREASE = true;
 double LCP_PACING_BONUS = 0.05;
 bool LCP_USE_MIN_RTT = false;
 bool LCP_USE_AGGRESSIVE_DECREASE = false;
+float LCP_ECN_ALPHA = 0.5;
+float LCP_ECN_FRACTION_THRESHOLD = 0.1;
+bool LCP_USE_ECN = true;
 // LCP-Gemini Specific Values.
 simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0;
 double LCP_GEMINI_H = 0.0;
