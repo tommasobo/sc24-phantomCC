@@ -213,12 +213,15 @@ def main():
     if not custom_rand.set_cdf_from_file(cdf_file_path):
         sys.exit("Error: Not a valid CDF.")
 
+    MESSAGE_SIZE_BYTES = 10000000
+
     # Calculate the average inter-arrival time (in ns).
     avg_msg_size_bits = custom_rand.calculate_average_value() * BYTE_TO_BIT
+    avg_msg_size_bits = MESSAGE_SIZE_BYTES * 8
     print(f"Average message size (in bits): {avg_msg_size_bits}")
     avg_load_bps = bandwidth_bps * load
     print(f"Average load (in bps): {avg_load_bps}")
-    avg_inter_arrival_time_ns = (avg_msg_size_bits / avg_load_bps) * NS_IN_S
+    avg_inter_arrival_time_ns = total_flows * (avg_msg_size_bits / avg_load_bps) * NS_IN_S
 
     print(f"Average inter-arrival time (in ns): {avg_inter_arrival_time_ns}")
 
@@ -230,7 +233,8 @@ def main():
         )
         while flow_start_time_ns < base_time_ns + sim_duration_ns:
             dst_idx_ = get_dst(src_idc, nhost, args.intra_dc_percentage)
-            flow_size_bytes = max(int(custom_rand.generate_random_number()), 1)
+            #flow_size_bytes = max(int(custom_rand.generate_random_number()), 1)
+            flow_size_bytes = MESSAGE_SIZE_BYTES
             flow_list.append(
                 Flow(
                     src_idc,

@@ -121,8 +121,6 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 
     _maxcwnd = bdp;
     _cwnd = starting_cwnd;
-    _lcp_cwnd = starting_cwnd;
-    _mprdma_cwnd = starting_cwnd;
     _consecutive_low_rtt = 0;
     target_window = _cwnd;
     _target_based_received = true;
@@ -520,13 +518,9 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     if (starting_cwnd == 1) {
         cout << "Finally setting CWND to: " << _bdp << endl;
         _cwnd = _bdp;
-        _lcp_cwnd = _bdp;
-        _mprdma_cwnd = _bdp;
     } else {
         cout << "thestartcwnd " << starting_cwnd << endl;
         _cwnd = starting_cwnd;
-        _lcp_cwnd = starting_cwnd;
-        _mprdma_cwnd = starting_cwnd;
     }
 
     if (LCP_DELTA == 1) {
@@ -768,16 +762,6 @@ void LcpSrc::reduce_unacked(uint64_t amount) {
 }
 
 void LcpSrc::check_limits_cwnd() {
-    // Set the cwnd to the minimum of the two.
-    // _cwnd = min(_lcp_cwnd, _mprdma_cwnd);
-    _cwnd = _lcp_cwnd;
-
-    if (_lcp_cwnd < _mprdma_cwnd) {
-        _list_driving_loop.push_back(std::make_pair(eventlist().now() / 1000, 1));
-    } else {
-        _list_driving_loop.push_back(std::make_pair(eventlist().now() / 1000, 0));
-    }
-
     // Upper Limit
     if (_cwnd > _maxcwnd) {
         _cwnd = _maxcwnd;
@@ -786,9 +770,6 @@ void LcpSrc::check_limits_cwnd() {
     if (_cwnd < _mss) {
         _cwnd = _mss;
     }
-
-    _lcp_cwnd = max(min(_lcp_cwnd, (uint32_t)_maxcwnd), (uint32_t)_mss);
-    _mprdma_cwnd = max(min(_mprdma_cwnd, (uint32_t)_maxcwnd), (uint32_t)_mss);
 
     update_pacing_delay();
 }
@@ -815,12 +796,7 @@ void LcpSrc::quick_adapt_drop() {
                     (_bdp / (double)send_size));
         }
         printf("After Update CWD is %lu \n", saved_acked_bytes);
-        _cwnd = max((double)(saved_acked_bytes * bonus_drop),
-                    (double)_mss); // 1.5 is the amount of target_rtt over
-                                    // base_rtt. Simplified here for this
-                                    // code share.
-        _lcp_cwnd = _cwnd;
-        _mprdma_cwnd = _cwnd;
+        _cwnd = saved_acked_bytes * bonus_drop;
         _list_fast_decrease.push_back(
                         std::make_pair(eventlist().now() / 1000, 1));
 
@@ -1328,26 +1304,9 @@ void LcpSrc::receivePacket(Packet &pkt) {
 
 void LcpSrc::fast_increase() {
     printf("From %d - Fast Increase at %lu\n", from, GLOBAL_TIME / 1000);
-    if (use_fast_drop) {
-        if (use_super_fast_increase) {
-            if (algorithm_type == "intersmartt") {
-                _cwnd += 0.5 * _mss;
-            } else {
-                _cwnd += 1.2 * _mss;
-            }
-        } else {
-            _cwnd += _mss;
-        }
-
-    } else {
-        if (use_super_fast_increase) {
-            _cwnd += 4 * _mss * (LINK_SPEED_MODERN / 100);
-        } else {
-            _cwnd += _mss;
-        }
-    }
-
-    increasing = true;
+    uint32_t old_cwnd = _cwnd;
+    _cwnd += _mss;
+    cout << "CWND change: " << _name + "_" + std::to_string(tag) << " FI from " << old_cwnd << " to " << _cwnd << " maxcwnd: " << _maxcwnd << endl;
     _list_fast_increase_event.push_back(std::make_pair(eventlist().now() / 1000, 1));
 }
 
@@ -1360,13 +1319,17 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             _good_count_this_window++;
         }
 
-        if (rtt >= TARGET_RTT_HIGH) {
-            _current_rtt_ewma = rtt;
+        if (LCP_USE_REGULAR_EWMA) {
+            _current_rtt_ewma = (simtime_picosec)(_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt);
         } else {
-            if (_current_rtt_ewma == 0) {
+            if (rtt >= TARGET_RTT_HIGH) {
                 _current_rtt_ewma = rtt;
             } else {
-                _current_rtt_ewma = min((simtime_picosec) (_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt), rtt);
+                if (_current_rtt_ewma == 0) {
+                    _current_rtt_ewma = rtt;
+                } else {
+                    _current_rtt_ewma = min((simtime_picosec) (_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt), rtt);
+                }
             }
         }
 
@@ -2241,15 +2204,15 @@ void LcpEpochAgent::doNextEvent() {
         }
 
         if (!flow->_did_qa_this_epoch) { // Only change CWND if we haven't already done so this epoch.
-            uint32_t cwnd_before = flow->_lcp_cwnd;
+            uint32_t cwnd_before = flow->_cwnd;
 
             if (is_ecn_congested || is_rtt_congested) { // If congested reduce based on max.
                 float max_reduction = max(ecn_reduction, rtt_reduction);
-                flow->_lcp_cwnd *= (1.0 - max_reduction);
+                flow->_cwnd *= (1.0 - max_reduction);
                 flow->_consecutive_good_epochs = 0;
 
-                cout << "    CWND change: " << flow->nodename() << " congested from " << flow->_lcp_cwnd << " to " <<
-                        flow->_lcp_cwnd * (1.0 - max_reduction) << " max_reduction: " << max_reduction <<
+                cout << "    CWND change: " << flow->nodename() << " congested from " << flow->_cwnd << " to " <<
+                        flow->_cwnd * (1.0 - max_reduction) << " max_reduction: " << max_reduction <<
                         " ecn_reduction: " << ecn_reduction << " rtt_reduction: " << rtt_reduction <<
                         " is_ecn_congested: " << is_ecn_congested << " is_rtt_congested: " << is_rtt_congested << endl;
 
@@ -2266,14 +2229,12 @@ void LcpEpochAgent::doNextEvent() {
 
                 // Increase the window.
                 if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-                    flow->_lcp_cwnd += (uint32_t) LCP_DELTA;
+                    flow->_cwnd += (uint32_t) LCP_DELTA;
                     
-                    cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
+                    cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_cwnd << endl;
                 } else {
-                    double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-                    flow->_lcp_cwnd *= (1 - gradient_change);
-
-                    cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
+                    flow->_cwnd += (uint32_t) LCP_DELTA / 5;
+                    cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_cwnd << " delta: " << LCP_DELTA << endl;
                 }
             }
         }
@@ -2285,46 +2246,6 @@ void LcpEpochAgent::doNextEvent() {
         flow->_good_count_this_window = 0;
         flow->_ecn_count_this_window = 0;
         flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
-
-
-        // if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-        //     flow->_consecutive_good_epochs++;
-        // } else {
-        //     flow->_consecutive_good_epochs = 0;
-        // }
-
-        // if (flow->_previous_rtt_ewma == timeFromMs(0)) {
-        //     flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
-        // }
-
-        // uint32_t cwnd_before = flow->_lcp_cwnd;
-
-        // if (!flow->_did_qa_this_epoch) {
-        //     // Translate rtt_change into a rate.
-        //     double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
-        //     cout << "CWND change: " << flow->nodename() << " before: " << cwnd_before << " gradient: " << gradient << " rttchange: " << rtt_change << endl;
-        //     cout << "    flow->_current_rtt_ewma: " << flow->_current_rtt_ewma << ", _target_rtt_low: " << TARGET_RTT_LOW << ", _target_rtt_high: " << TARGET_RTT_HIGH << endl;
-        //     if (flow->_current_rtt_ewma < TARGET_RTT_LOW) {
-        //         flow->_lcp_cwnd += (uint32_t)LCP_DELTA;
-        //         cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_lcp_cwnd << endl;
-        //     } else if (flow->_current_rtt_ewma > TARGET_RTT_HIGH) {
-        //         flow->_lcp_cwnd *= 0.5;
-        //     } else if (gradient <= 0.0) {
-        //         flow->_lcp_cwnd += flow->_mss;
-        //         cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " delta: " << LCP_DELTA << endl;
-        //     } else {
-        //         double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
-        //         flow->_lcp_cwnd *= (1 - gradient_change);
-        //         cout << "    CWND change: " << flow->nodename() << " between with positive gradient go from " << cwnd_before << " to " << flow->_lcp_cwnd << " gradient_change: " << gradient_change << endl;
-        //     }
-        // }
-
-        // flow->_did_qa_this_epoch = false;
-
-        // // Reset State.
-        // // cout << "DEBUGMSGEPOCH: Node: " << flow->_name << "_" << std::to_string(flow->tag) << " Time: " << eventlist().now() / 1000000 << endl;
-        // flow->_previous_rtt_ewma = flow->_current_rtt_ewma;
-        // flow->check_limits_cwnd();
 
         if (COLLECT_DATA) {
             flow->_list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, flow->_current_rtt_ewma / 1000));
