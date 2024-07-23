@@ -549,6 +549,7 @@ void FatTreeInterDCTopology::set_custom_params(uint32_t no_of_nodes) {
     NSRV = no_of_nodes;
     NTOR = _tor_switches_per_pod * no_of_pods;
     NAGG = _agg_switches_per_pod * no_of_pods;
+    cout << "NAGG: " << NAGG << endl;
     NPOD = no_of_pods;
     NCORE = no_of_core_switches;
     alloc_vectors();
@@ -619,14 +620,18 @@ void FatTreeInterDCTopology::alloc_vectors() {
     printf("Number of core to border links: %d - uplinks %d - %d\n", _no_of_core_to_border, uplink_numbers, other);
     _num_links_same_border_from_core = NAGG / _no_of_core_to_border;
     _num_links_between_borders = uplink_numbers * NAGG / number_border_switches;
+    
     _num_links_same_border_from_core = _num_links_between_borders / NCORE;
 
     printf("Number of links between borders: %d - uplinks %d \n", _num_links_between_borders, uplink_numbers);
 
     _num_links_same_border_from_core = _num_links_same_border_from_core;
+    cout << "Num links between borders before: " << _num_links_between_borders << endl;
     _num_links_between_borders = _num_links_between_borders / os_ratio_border;
 
     if (_num_links_same_border_from_core == 0 || _num_links_between_borders == 0) {
+        cout << "Invalid number of links between borders: " << _num_links_between_borders << " or same border from core: "
+             << _num_links_same_border_from_core << endl;
         exit(0);
     }
 
@@ -1308,7 +1313,7 @@ void FatTreeInterDCTopology::init_network() {
 
                 // UpLinks Queues and Pipes
                 queues_nborderl_nborderu[border_l][border_u][link_num] =
-                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0], _inter_queuesize, UPLINK, BORDER_TIER, false);
+                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0]  * 0.9, _inter_queuesize, UPLINK, BORDER_TIER, false);
 
                 queues_nborderl_nborderu[border_l][border_u][link_num]->setName(
                         "DC" + ntoa(0) + "-BORDER" + ntoa(border_l) + "->BORDER" + ntoa(border_u) +
@@ -1322,7 +1327,7 @@ void FatTreeInterDCTopology::init_network() {
 
                 // DownLinks Queues and Pipes
                 queues_nborderu_nborderl[border_u][border_l][link_num] =
-                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0], _inter_queuesize, DOWNLINK, BORDER_TIER, false);
+                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0]  * 0.9, _inter_queuesize, DOWNLINK, BORDER_TIER, false);
 
                 queues_nborderu_nborderl[border_u][border_l][link_num]->setName(
                         "DC" + ntoa(1) + "-BORDER" + ntoa(border_u) + "->BORDER" + ntoa(border_l) + "_LINK" +

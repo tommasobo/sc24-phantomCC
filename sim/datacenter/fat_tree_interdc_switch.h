@@ -94,7 +94,7 @@ class FatTreeInterDCSwitch : public Switch {
   public:
     enum switch_type { NONE = 0, TOR = 1, AGG = 2, CORE = 3, BORDER = 4 };
 
-    enum routing_strategy { NIX = 0, ECMP = 1, ADAPTIVE_ROUTING = 2, ECMP_ADAPTIVE = 3, RR = 4, RR_ECMP = 5 };
+    enum routing_strategy { NIX = 0, ECMP = 1, ADAPTIVE_ROUTING = 2, ECMP_ADAPTIVE = 3, RR = 4, RR_ECMP = 5, SINGLE = 6 };
 
     enum sticky_choices { PER_PACKET = 0, PER_FLOWLET = 1 };
 

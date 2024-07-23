@@ -554,6 +554,7 @@ int main(int argc, char **argv) {
                 route_strategy = PULL_BASED;
             } else if (!strcmp(argv[i + 1], "single")) {
                 route_strategy = SINGLE_PATH;
+                FatTreeInterDCSwitch::set_strategy(FatTreeInterDCSwitch::SINGLE);
             } else if (!strcmp(argv[i + 1], "ecmp_host")) {
                 route_strategy = ECMP_FIB;
                 FatTreeSwitch::set_strategy(FatTreeSwitch::ECMP);
@@ -842,7 +843,7 @@ int main(int argc, char **argv) {
             if (topo_file) {
                 top_dc = FatTreeInterDCTopology::load(topo_file, NULL, eventlist, intra_queuesize, inter_queuesize, COMPOSITE, FAIR_PRIO);
                 if (top_dc->no_of_nodes() != no_of_nodes) {
-                    cerr << "Mismatch between connection matrix (" << no_of_nodes << " nodes) and topology ("
+                    cout << "Mismatch between connection matrix (" << no_of_nodes << " nodes) and topology ("
                          << top_dc->no_of_nodes() << " nodes)" << endl;
                     exit(1);
                 }
@@ -946,6 +947,7 @@ int main(int argc, char **argv) {
                         case ECMP_FIB:
                         case ECMP_FIB_ECN:
                         case ECMP_RANDOM2_ECN:
+                        case SINGLE_PATH:
                         case REACTIVE_ECN: {
                             Route *srctotor = new Route();
                             Route *dsttotor = new Route();
@@ -1072,6 +1074,7 @@ int main(int argc, char **argv) {
                         case ECMP_FIB:
                         case ECMP_FIB_ECN:
                         case ECMP_RANDOM2_ECN:
+                        case SINGLE_PATH:
                         case REACTIVE_ECN: {
                             Route *srctotor = new Route();
                             Route *dsttotor = new Route();
@@ -1202,6 +1205,7 @@ int main(int argc, char **argv) {
                     case ECMP_FIB:
                     case ECMP_FIB_ECN:
                     case ECMP_RANDOM2_ECN:
+                    case SINGLE_PATH:
                     case REACTIVE_ECN: {
                         Route *srctotor = new Route();
                         Route *dsttotor = new Route();

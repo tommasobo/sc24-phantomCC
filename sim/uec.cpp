@@ -983,8 +983,9 @@ int UecSrc::choose_route() {
         break;
     }
     case SINGLE_PATH:
-        abort(); // not sure if this can ever happen - if it can, remove this
+        // abort(); // not sure if this can ever happen - if it can, remove this
                  // line
+        return _crt_path;
     case REACTIVE_ECN:
         return _crt_path;
     case NOT_SET:
@@ -2030,13 +2031,13 @@ void permute_sequence_uec(vector<int> &seq) {
 }
 
 void UecSrc::set_paths(uint32_t no_of_paths) {
-    if (_route_strategy != ECMP_FIB && _route_strategy != ECMP_FIB_ECN && _route_strategy != ECMP_FIB2_ECN &&
-        _route_strategy != REACTIVE_ECN && _route_strategy != ECMP_RANDOM_ECN && _route_strategy != ECMP_RANDOM2_ECN) {
-        cout << "Set paths uec (path_count) called with wrong route "
-                "strategy "
-             << _route_strategy << endl;
-        abort();
-    }
+    // if (_route_strategy != ECMP_FIB && _route_strategy != ECMP_FIB_ECN && _route_strategy != ECMP_FIB2_ECN &&
+    //     _route_strategy != REACTIVE_ECN && _route_strategy != ECMP_RANDOM_ECN && _route_strategy != ECMP_RANDOM2_ECN) {
+    //     cout << "Set paths uec (path_count) called with wrong route "
+    //             "strategy "
+    //          << _route_strategy << endl;
+    //     abort();
+    // }
 
     _path_ids.resize(no_of_paths);
     permute_sequence_uec(_path_ids);
@@ -2072,12 +2073,12 @@ void UecSrc::set_paths(vector<const Route *> *rt_list) {
     uint32_t no_of_paths = rt_list->size();
     switch (_route_strategy) {
     case NOT_SET:
-    case SINGLE_PATH:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
         // shouldn't call this with these strategies
         abort();
+    case SINGLE_PATH:
     case SCATTER_PERMUTE:
     case SCATTER_RANDOM:
     case PULL_BASED:
@@ -2427,6 +2428,19 @@ void UecSink::send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, Uec
         }
 
         break;
+    case SINGLE_PATH:
+        ack = UecAck::newpkt(_src->_flow, *_route, seqno, ackno, 0, _srcaddr);
+        ack->set_pathid(_path_ids[_crt_path]);
+        ack->inc_id++;
+        ack->my_idx = ack_count_idx++;
+
+        // set ECN echo only if that is selected strategy
+        if (marked) {
+            ack->set_flags(ECN_ECHO);
+        } else {
+            ack->set_flags(0);
+        }
+        break;
     case NOT_SET:
         abort();
     default:
@@ -2488,10 +2502,9 @@ void UecSink::set_paths(uint32_t no_of_paths) {
     case SCATTER_RANDOM:
     case PULL_BASED:
     case SCATTER_ECMP:
-    case SINGLE_PATH:
     case NOT_SET:
         abort();
-
+    case SINGLE_PATH:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case ECMP_RANDOM2_ECN:

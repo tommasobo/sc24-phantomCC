@@ -1015,8 +1015,9 @@ int LcpSrc::choose_route() {
         break;
     }
     case SINGLE_PATH:
-        abort(); // not sure if this can ever happen - if it can, remove this
+        // abort(); // not sure if this can ever happen - if it can, remove this
                  // line
+        return _crt_path;
     case REACTIVE_ECN:
         return _crt_path;
     case NOT_SET:
@@ -1337,7 +1338,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
         // printf("\t_current_rtt_ewma: %d _previous_rtt_ewma: %d rtt: %d alpha: %f curackno: %lu\n", _current_rtt_ewma, _previous_rtt_ewma, rtt, LCP_ALPHA, ackno);
 
-        if (_current_rtt_ewma > TARGET_RTT_LOW) {
+        if (rtt > TARGET_RTT_LOW) {
             _consecutive_good_epochs = 0;
         }
 
@@ -1633,13 +1634,13 @@ void permute_sequence_lcp(vector<int> &seq) {
 }
 
 void LcpSrc::set_paths(uint32_t no_of_paths) {
-    if (_route_strategy != ECMP_FIB && _route_strategy != ECMP_FIB_ECN && _route_strategy != ECMP_FIB2_ECN &&
-        _route_strategy != REACTIVE_ECN && _route_strategy != ECMP_RANDOM_ECN && _route_strategy != ECMP_RANDOM2_ECN) {
-        cout << "Set paths uec (path_count) called with wrong route "
-                "strategy "
-             << _route_strategy << endl;
-        abort();
-    }
+    // if (_route_strategy != ECMP_FIB && _route_strategy != ECMP_FIB_ECN && _route_strategy != ECMP_FIB2_ECN &&
+    //     _route_strategy != REACTIVE_ECN && _route_strategy != ECMP_RANDOM_ECN && _route_strategy != ECMP_RANDOM2_ECN) {
+    //     cout << "Set paths uec (path_count) called with wrong route "
+    //             "strategy "
+    //          << _route_strategy << endl;
+    //     abort();
+    // }
 
     _path_ids.resize(no_of_paths);
     permute_sequence_lcp(_path_ids);
@@ -1675,12 +1676,12 @@ void LcpSrc::set_paths(vector<const Route *> *rt_list) {
     uint32_t no_of_paths = rt_list->size();
     switch (_route_strategy) {
     case NOT_SET:
-    case SINGLE_PATH:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
         // shouldn't call this with these strategies
         abort();
+    case SINGLE_PATH:
     case SCATTER_PERMUTE:
     case SCATTER_RANDOM:
     case PULL_BASED:
@@ -2032,6 +2033,19 @@ void LcpSink::send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, Uec
         }
 
         break;
+    case SINGLE_PATH:
+        ack = UecAck::newpkt(_src->_flow, *_route, seqno, ackno, 0, _srcaddr);
+        ack->set_pathid(_path_ids[_crt_path]);
+        ack->inc_id++;
+        ack->my_idx = ack_count_idx++;
+
+        // set ECN echo only if that is selected strategy
+        if (marked) {
+            ack->set_flags(ECN_ECHO);
+        } else {
+            ack->set_flags(0);
+        }
+        break;
     case NOT_SET:
         abort();
     default:
@@ -2044,7 +2058,7 @@ void LcpSink::send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, Uec
         ack->pfc_just_happened = true;
     }
 
-    // ack->inRoute = inRoute;
+    // ack->inf = inRoute;
     ack->is_ack = true;
     ack->flow().logTraffic(*ack, *this, TrafficLogger::PKT_CREATE);
     ack->set_ts(ts);
@@ -2093,10 +2107,9 @@ void LcpSink::set_paths(uint32_t no_of_paths) {
     case SCATTER_RANDOM:
     case PULL_BASED:
     case SCATTER_ECMP:
-    case SINGLE_PATH:
     case NOT_SET:
         abort();
-
+    case SINGLE_PATH:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case ECMP_RANDOM2_ECN:
@@ -2163,7 +2176,8 @@ LcpEpochAgent::LcpEpochAgent(EventList &event_list, LcpSrc *flow)
         {
     // _next_epoch_time = eventlist().now() + TARGET_RTT_LOW;
     cout << "TRTTLOW: " << TARGET_RTT_LOW << endl;
-    eventlist().sourceIsPendingRel(*this, random() % TARGET_RTT_LOW);
+    // eventlist().sourceIsPendingRel(*this, random() % TARGET_RTT_LOW);
+    eventlist().sourceIsPendingRel(*this, 0);
 }
 
 void LcpEpochAgent::doNextEvent() {
@@ -2233,7 +2247,7 @@ void LcpEpochAgent::doNextEvent() {
                     
                     cout << "    CWND change: " << flow->nodename() << " less than all, go from " << cwnd_before << " to " << flow->_cwnd << endl;
                 } else {
-                    flow->_cwnd += (uint32_t) LCP_DELTA / 5;
+                    flow->_cwnd += (uint32_t) LCP_DELTA / 10;
                     cout << "    CWND change: " << flow->nodename() << " between with negative gradient go from " << cwnd_before << " to " << flow->_cwnd << " delta: " << LCP_DELTA << endl;
                 }
             }

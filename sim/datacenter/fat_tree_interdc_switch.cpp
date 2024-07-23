@@ -333,6 +333,9 @@ Route *FatTreeInterDCSwitch::getNextHop(Packet &pkt, BaseQueue *ingress_port) {
             switch (_strategy) {
             case NIX:
                 abort();
+            case SINGLE:
+                ecmp_choice = 0;
+                break;
             case ECMP:
                 // printf("Pkt Flow ID %d - Path Id %d\n", pkt.flow_id(),
                 //        pkt.pathid());
