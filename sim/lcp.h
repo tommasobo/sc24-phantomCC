@@ -320,6 +320,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     simtime_picosec _previous_rtt_ewma;
     simtime_picosec _current_rtt_ewma;
     uint64_t _next_measurement_seq_no;
+    int64_t _bytes_until_next_epoch;
     uint32_t _consecutive_good_epochs;
     simtime_picosec _time_of_next_epoch;
     // uint64_t _bytes_receieved_since_last_epoch;
