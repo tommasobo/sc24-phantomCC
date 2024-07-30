@@ -66,6 +66,9 @@ extern float LCP_ECN_ALPHA;
 extern float LCP_ECN_FRACTION_THRESHOLD;
 extern bool LCP_USE_ECN;
 extern bool LCP_USE_REGULAR_EWMA;
+extern float LCP_TARGET_RTT_HIGH_FRACTION;
+extern bool LCP_CONSTANT_DECREASE;
+extern bool LCP_DO_PER_ACK_INCREASE;
 // LCP-Gemini
 extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
 extern double LCP_GEMINI_H;

@@ -183,7 +183,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _pulls_received;
     uint64_t _implicit_pulls;
     uint64_t _bounces_received;
-    uint32_t _cwnd;
+    float _cwnd;
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
     uint32_t saved_acked_bytes = 0;
@@ -338,6 +338,9 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     float _ecn_fraction_ewma;
     float _ecn_count_this_window;
     float _good_count_this_window;
+    simtime_picosec _time_of_last_epoch;
+    uint32_t _last_cwnd;
+    float _max_queue_latency;
 
     // LCP-Gemini.
     uint64_t _next_window_seq_no;

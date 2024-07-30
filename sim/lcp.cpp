@@ -151,12 +151,15 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     _consecutive_good_epochs = 0;
     _time_of_next_epoch = TARGET_RTT_LOW;
     _time_of_last_qa = 0;
+    _time_of_last_epoch = 0;
     saved_acked_bytes = 0;
     _first_qa_measurement = true;
     _did_qa_this_epoch = false;
     _ecn_fraction_ewma = 0;
     _ecn_count_this_window = 0;
     _good_count_this_window = 0;
+    _last_cwnd = 0;
+
 
     // LCP gemini.
     _next_window_seq_no = 0;
@@ -530,7 +533,8 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
     float queue_latency_ns = (float) queuesize_bytes * 8 / (float) LINK_SPEED_MODERN;
-    TARGET_RTT_HIGH = 0.9 * queue_latency_ns * 1000.0 + BAREMETAL_RTT;
+    _max_queue_latency = queue_latency_ns;
+    TARGET_RTT_HIGH = LCP_TARGET_RTT_HIGH_FRACTION * queue_latency_ns * 1000.0 + BAREMETAL_RTT;
     cout << "TARGET_RTT_HIGH: " << TARGET_RTT_HIGH << endl;
     cout << "    queue_latency_ns: " << queue_latency_ns << endl;
     cout << "    baremetal_rtt: " << BAREMETAL_RTT << endl;
@@ -787,16 +791,9 @@ void LcpSrc::resetQACounting() {
 }
 
 void LcpSrc::quick_adapt_drop() {
-    if (saved_acked_bytes > 0) {
+    if (saved_acked_bytes > 0 && _did_qa_this_epoch == false) {
         // Update window and ignore count
-        printf("Before Update CWD is %lu \n", _cwnd);
-        if (send_size <= _bdp) {
-            // saved_acked_bytes =
-            //         saved_acked_bytes * (_bdp / (double)send_size);
-            printf("BDP %lu - Send Size %lu - Ratio %f\n", _bdp, send_size,
-                    (_bdp / (double)send_size));
-        }
-        printf("After Update CWD is %lu \n", saved_acked_bytes);
+        cout << "Quick Adapt: " << _name << "_" << tag << " going from " << _cwnd << " to " << saved_acked_bytes << endl;
         _cwnd = saved_acked_bytes * bonus_drop;
         _list_fast_decrease.push_back(
                         std::make_pair(eventlist().now() / 1000, 1));
@@ -835,6 +832,10 @@ void LcpSrc::processNack(UecNack &pkt) {
 
     if (LCP_USE_QUICK_ADAPT) {
         quick_adapt_drop();
+    }
+
+    if (algorithm_type == "tcp") {
+        _cwnd /= 2;
     }
 
     check_limits_cwnd();
@@ -1342,13 +1343,32 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             _consecutive_good_epochs = 0;
         }
 
-        if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-            printf("Doing fi\n");
-            fast_increase();
-        } 
+        if (LCP_DO_PER_ACK_INCREASE && !(ecn || rtt > TARGET_RTT_HIGH)) { 
+            // Should increase.
+            if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
+                printf("Doing fi\n");
+                fast_increase();
+            } else {
+                // Do a regular increase.
+                // Increase the window.
+                uint32_t num_acks = _cwnd / _mss;
+                uint32_t cwnd_before = _cwnd;
+                if (_current_rtt_ewma < TARGET_RTT_LOW) {
+                    _cwnd += (uint32_t) LCP_DELTA / num_acks;
+                    cout << "    CWND change: " << _name << "_" << tag << " less than all, go from " << cwnd_before << " to " << _cwnd << " num_acks: " << num_acks << " increasing by " << (uint32_t) LCP_DELTA / num_acks << "LCP_DELTA: " << LCP_DELTA << endl;
+                } else {
+                    //_cwnd += (uint32_t) LCP_DELTA / (10 * num_acks);
+                    _cwnd += ((uint32_t) LCP_DELTA / num_acks) / 5;
+                    cout << "    CWND change: " << _name << "_" << tag << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << " num_acks: " << num_acks << " increasing by " << (uint32_t) LCP_DELTA / num_acks << endl;
+                }
+            }
+        }
 
         if (_bytes_until_next_epoch <= 0) {
-            cout << "Epoch triggereed with " << _bytes_until_next_epoch << " bytes remaining" << endl;
+            cout << "Epoch triggereed " << _name << "_" << tag << "with " << _bytes_until_next_epoch << " bytes remaining, time since last epoch: " << eventlist().now() - _time_of_last_epoch << endl;
+            cout << " Cwnd before: " << _last_cwnd << " Cwnd after: " << _cwnd << " Good: " << _good_count_this_window << " ECN: " << _ecn_count_this_window << endl;
+            _last_cwnd = _cwnd;
+            _time_of_last_epoch = eventlist().now();
 
             quick_adapt(false); // Update QA state.
 
@@ -1374,10 +1394,29 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             bool is_rtt_congested = false;
             float rtt_reduction = 0.0;
             int64_t rtt_change = (int64_t) _current_rtt_ewma - (int64_t) _previous_rtt_ewma;
-            cout << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << endl;
             double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
+            cout << _name << "_" << tag << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << " Gradient: " << gradient << endl;
             if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-                rtt_reduction = 0.5;
+                if (LCP_CONSTANT_DECREASE) {
+                    rtt_reduction = 0.5;
+                } else {
+                    double queue_fullness = ((float) (_current_rtt_ewma - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                    double low_fullness = ((float) (TARGET_RTT_LOW - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                    double high_fullness = ((float) (TARGET_RTT_HIGH - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                    cout << "   Low fullness: " << low_fullness << " High fullness: " << high_fullness << " Queue fullness: " << queue_fullness << endl;
+                    assert (low_fullness > 0.0);
+                    assert (high_fullness > 0.0);
+                    assert (queue_fullness > 0.0);
+                    assert (queue_fullness >= high_fullness);
+                    assert (low_fullness < high_fullness);
+                    // assert (queue_fullness <= 1.0);
+
+                    float desired_fullness = (low_fullness + high_fullness) / 2.0;
+                    double latency_ratio = (queue_fullness - desired_fullness) / queue_fullness;
+                    double latency_factor = LCP_GAMMA * (1.0 - latency_ratio);
+                    cout << "   Queue fullness: " << queue_fullness << " Desired fullness: " << desired_fullness << " Latency ratio: " << latency_ratio << " Latency factor: " << latency_factor << " LCP_GAMMA: " << LCP_GAMMA << endl;
+                    rtt_reduction = latency_factor;
+                }
                 is_rtt_congested = true;
             } else if (_current_rtt_ewma > TARGET_RTT_LOW && gradient > 0.0) {
                 double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
@@ -1392,31 +1431,34 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                     float max_reduction = max(ecn_reduction, rtt_reduction);
                     _cwnd *= (1.0 - max_reduction);
                     _consecutive_good_epochs = 0;
+                    std::string change_type = "ECNREDUCE";
+                    if (rtt_reduction > ecn_reduction) {
+                        change_type = "RTTREDUCE";
+                    }
 
-                    cout << "    CWND change: " << nodename() << " congested from " << _cwnd << " to " <<
-                            _cwnd * (1.0 - max_reduction) << " max_reduction: " << max_reduction <<
+                    if (is_rtt_congested && rtt_reduction > ecn_reduction) {
+                        _list_is_rtt_congested.push_back(eventlist().now() / 1000);
+                    } else {
+                        _list_is_ecn_congested.push_back(eventlist().now() / 1000);
+                    }
+                    uint64_t current_time = eventlist().now() / 1000000;
+                    cout << "    CWND change at " << current_time << ": " << change_type << " " << _name << "_" << tag << " congested from " << cwnd_before << " to " <<
+                            _cwnd << " max_reduction: " << max_reduction <<
                             " ecn_reduction: " << ecn_reduction << " rtt_reduction: " << rtt_reduction <<
                             " is_ecn_congested: " << is_ecn_congested << " is_rtt_congested: " << is_rtt_congested << " k: " << k << " F: " << F << " ecn_fraction: " << _ecn_fraction_ewma << endl;
-
-                    // Log the congestion type.
-                    if (is_ecn_congested && is_rtt_congested) {
-                        _list_is_dual_congested.push_back(eventlist().now() / 1000);
-                    } else if (is_ecn_congested) {
-                        _list_is_ecn_congested.push_back(eventlist().now() / 1000);
-                    } else if (is_rtt_congested) {
-                        _list_is_rtt_congested.push_back(eventlist().now() / 1000);
-                    }
                 } else { // If not congested increase.
                     _consecutive_good_epochs++;
 
-                    // Increase the window.
-                    if (_current_rtt_ewma < TARGET_RTT_LOW) {
-                        _cwnd += (uint32_t) LCP_DELTA;
-                        
-                        cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
-                    } else {
-                        _cwnd += (uint32_t) LCP_DELTA / 10;
-                        cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+                    if (!LCP_DO_PER_ACK_INCREASE) {
+                        // Increase the window.
+                        if (_current_rtt_ewma < TARGET_RTT_LOW) {
+                            _cwnd += (uint32_t) LCP_DELTA;
+                            
+                            cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
+                        } else {
+                            _cwnd += (uint32_t) LCP_DELTA / 10;
+                            cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+                        }
                     }
                 }
             }
@@ -1510,6 +1552,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
             MyFile4.close();
         }
+    } else if (algorithm_type == "tcp") {
+        _cwnd +=  (float) _mss * (float) _mss / (float)_cwnd;
     }
 
     check_limits_cwnd();

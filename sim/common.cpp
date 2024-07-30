@@ -77,6 +77,9 @@ float LCP_ECN_ALPHA = 0.5;
 float LCP_ECN_FRACTION_THRESHOLD = 0.1;
 bool LCP_USE_ECN = true;
 bool LCP_USE_REGULAR_EWMA = false;
+float LCP_TARGET_RTT_HIGH_FRACTION = 0.9;
+bool LCP_CONSTANT_DECREASE = false;
+bool LCP_DO_PER_ACK_INCREASE = false;
 // LCP-Gemini Specific Values.
 simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0;
 double LCP_GEMINI_H = 0.0;

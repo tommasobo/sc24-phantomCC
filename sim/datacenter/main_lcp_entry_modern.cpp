@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
     double def_end_time = 0.5;
     int num_periods = 1;
     bool use_bbr = false;
-
+    bool use_tcp = false;
     int i = 1;
     filename << "logout.dat";
 
@@ -637,8 +637,14 @@ int main(int argc, char **argv) {
             LCP_USE_AGGRESSIVE_DECREASE = true;
         } else if (!strcmp(argv[i], "-use-bbr")) {
             use_bbr = true;
+        } else if (!strcmp(argv[i], "-use-tcp")) {
+            use_tcp = true;
         } else if (!strcmp(argv[i], "-use-regular-ewma")) {
             LCP_USE_REGULAR_EWMA = true;
+        } else if (!strcmp(argv[i], "-use-constant-decrease")) {
+            LCP_CONSTANT_DECREASE = true;
+        } else if (!strcmp(argv[i], "-per-ack")) {
+            LCP_DO_PER_ACK_INCREASE = true;
         } else {
             cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
@@ -646,7 +652,11 @@ int main(int argc, char **argv) {
         i++;
     }
 
-    LcpSrc::set_alogirthm("lcp");
+    if (use_tcp) {
+        LcpSrc::set_alogirthm("tcp");
+    } else {
+        LcpSrc::set_alogirthm("lcp");
+    }
     UecSrc::set_alogirthm("mprdma");
 
     SINGLE_PKT_TRASMISSION_TIME_MODERN = packet_size * 8 / (LINK_SPEED_MODERN);
@@ -873,6 +883,7 @@ int main(int argc, char **argv) {
         vector<UecSrc *> intra_srcs;
         vector<LcpSrc *> inter_srcs;
         vector<BBRSrc *> bbr_srcs;
+        vector<TcpSrc *> tcp_srcs;
         vector<LcpEpochAgent *> inter_agents;
         LcpSrc *lcpSrc;
         LcpSink *lcpSink;
@@ -880,6 +891,21 @@ int main(int argc, char **argv) {
         UecSink *uecSink;
         BBRSrc *bbrSrc;
         BBRSink *bbrSink;
+        Route *routeout, *routein;
+
+        vector<const Route *> ***net_paths;
+        net_paths = new vector<const Route *> **[no_of_nodes];
+
+        int *is_dest = new int[no_of_nodes];
+
+        for (uint32_t i = 0; i < no_of_nodes; i++) {
+            is_dest[i] = 0;
+            net_paths[i] = new vector<const Route *> *[no_of_nodes];
+            for (uint32_t j = 0; j < no_of_nodes; j++)
+                net_paths[i][j] = NULL;
+        }
+
+        TcpRtxTimerScanner tcpRtxScanner(timeFromMs(10), eventlist);
         LcpEpochAgent *lcpEpochAgent;
 
         for (size_t c = 0; c < all_conns->size(); c++) {
@@ -1295,6 +1321,9 @@ int main(int argc, char **argv) {
         for (std::size_t i = 0; i < bbr_srcs.size(); ++i) {
             delete bbr_srcs[i];
         } 
+        for (std::size_t i = 0; i < tcp_srcs.size(); ++i) {
+            delete tcp_srcs[i];
+        }
     } else if (goal_filename.size() > 0) {
         printf("Starting LGS Interface");
 
