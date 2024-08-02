@@ -159,7 +159,7 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     _ecn_count_this_window = 0;
     _good_count_this_window = 0;
     _last_cwnd = 0;
-
+    _consecutive_decreases = 0;
 
     // LCP gemini.
     _next_window_seq_no = 0;
@@ -1397,31 +1397,41 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             double gradient = ((double) rtt_change) / ((double) TARGET_RTT_LOW);
             cout << _name << "_" << tag << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << " Gradient: " << gradient << endl;
             if (_current_rtt_ewma > TARGET_RTT_HIGH) {
-                if (LCP_CONSTANT_DECREASE) {
-                    rtt_reduction = 0.5;
+                if (_consecutive_decreases > 3 && LCP_USE_QUICK_ADAPT) {
+                    quick_adapt_drop();
+                    _did_qa_this_epoch = true;
+                    _consecutive_decreases = 0;
                 } else {
-                    double queue_fullness = ((float) (_current_rtt_ewma - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
-                    double low_fullness = ((float) (TARGET_RTT_LOW - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
-                    double high_fullness = ((float) (TARGET_RTT_HIGH - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
-                    cout << "   Low fullness: " << low_fullness << " High fullness: " << high_fullness << " Queue fullness: " << queue_fullness << endl;
-                    assert (low_fullness > 0.0);
-                    assert (high_fullness > 0.0);
-                    assert (queue_fullness > 0.0);
-                    assert (queue_fullness >= high_fullness);
-                    assert (low_fullness < high_fullness);
-                    // assert (queue_fullness <= 1.0);
+                    if (LCP_CONSTANT_DECREASE) {
+                        rtt_reduction = 0.5;
+                    } else {
+                        double queue_fullness = ((float) (_current_rtt_ewma - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                        double low_fullness = ((float) (TARGET_RTT_LOW - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                        double high_fullness = ((float) (TARGET_RTT_HIGH - BAREMETAL_RTT)/1000.0) / ((float) _max_queue_latency);
+                        cout << "   Low fullness: " << low_fullness << " High fullness: " << high_fullness << " Queue fullness: " << queue_fullness << endl;
+                        assert (low_fullness > 0.0);
+                        assert (high_fullness > 0.0);
+                        assert (queue_fullness > 0.0);
+                        assert (queue_fullness >= high_fullness);
+                        assert (low_fullness < high_fullness);
+                        // assert (queue_fullness <= 1.0);
 
-                    float desired_fullness = (low_fullness + high_fullness) / 2.0;
-                    double latency_ratio = (queue_fullness - desired_fullness) / queue_fullness;
-                    double latency_factor = LCP_GAMMA * (1.0 - latency_ratio);
-                    cout << "   Queue fullness: " << queue_fullness << " Desired fullness: " << desired_fullness << " Latency ratio: " << latency_ratio << " Latency factor: " << latency_factor << " LCP_GAMMA: " << LCP_GAMMA << endl;
-                    rtt_reduction = latency_factor;
+                        float desired_fullness = (low_fullness + high_fullness) / 2.0;
+                        double latency_ratio = (queue_fullness - desired_fullness) / queue_fullness;
+                        double latency_factor = LCP_GAMMA * (1.0 - latency_ratio);
+                        cout << "   Queue fullness: " << queue_fullness << " Desired fullness: " << desired_fullness << " Latency ratio: " << latency_ratio << " Latency factor: " << latency_factor << " LCP_GAMMA: " << LCP_GAMMA << endl;
+                        rtt_reduction = latency_factor;
+                    }
+                    _consecutive_decreases++;
                 }
                 is_rtt_congested = true;
             } else if (_current_rtt_ewma > TARGET_RTT_LOW && gradient > 0.0) {
                 double gradient_change = min(max(0.0, gradient * LCP_BETA), 1.0);
                 rtt_reduction = gradient_change;
                 is_rtt_congested = true;
+                _consecutive_decreases = 0;
+            } else {
+                _consecutive_decreases = 0;
             }
 
             if (!_did_qa_this_epoch) { // Only change CWND if we haven't already done so this epoch.

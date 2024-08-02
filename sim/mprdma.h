@@ -1,15 +1,15 @@
 // -*- c-basic-offset: 4; tab-width: 8; indent-tabs-mode: t -*-
 
-#ifndef LCP_H
-#define LCP_H
+#ifndef MPRDMA_H
+#define MPRDMA_H
 
 /*
- * A UEC source and sink
+ * A MPRDMA source and sink
  */
 #include "config.h"
 #include "eventlist.h"
 #include "fairpullqueue.h"
-#include "lcp_pacer.h"
+#include "mprdma_pacer.h"
 // #include "datacenter/logsim-interface.h"
 #include "network.h"
 #include "trigger.h"
@@ -18,14 +18,14 @@
 #include <list>
 #include <map>
 
-class LcpSink;
+class MprdmaSink;
 // class LogSimInterface;
 
-class LcpSentPacket {
+class MprdmaSentPacket {
   public:
-    LcpSentPacket(simtime_picosec t, uint64_t s, bool a, bool n, bool to)
+    MprdmaSentPacket(simtime_picosec t, uint64_t s, bool a, bool n, bool to)
             : timer{t}, seqno{s}, acked{a}, nacked{n}, timedOut{to} {}
-    LcpSentPacket(const LcpSentPacket &sp)
+    MprdmaSentPacket(const MprdmaSentPacket &sp)
             : timer{sp.timer}, seqno{sp.seqno}, acked{sp.acked}, nacked{sp.nacked}, timedOut{sp.timedOut} {}
     simtime_picosec timer;
     uint64_t seqno;
@@ -34,22 +34,22 @@ class LcpSentPacket {
     bool timedOut;
 };
 
-class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
-    friend class LcpSink;
+class MprdmaSrc : public PacketSink, public EventSource, public TriggerTarget {
+    friend class MprdmaSink;
 
   public:
-    LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList, uint64_t rtt, uint64_t bdp,
+    MprdmaSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList, uint64_t rtt, uint64_t bdp,
            uint64_t queueDrainTime, int hops);
-    // LcpSrc(UecLogger *logger, TrafficLogger* pktLogger, EventList& eventList,
+    // MprdmaSrc(MprdmaLogger *logger, TrafficLogger* pktLogger, EventList& eventList,
     // uint64_t rtt=timeFromUs(5.25), uint64_t bdp=63000);
-    ~LcpSrc();
+    ~MprdmaSrc();
 
     virtual void doNextEvent() override;
 
     void receivePacket(Packet &pkt) override;
     const string &nodename() override;
 
-    virtual void connect(Route *routeout, Route *routeback, LcpSink &sink, simtime_picosec startTime);
+    virtual void connect(Route *routeout, Route *routeback, MprdmaSink &sink, simtime_picosec startTime);
     void startflow();
     void set_paths(vector<const Route *> *rt);
     void set_paths(uint32_t no_of_paths);
@@ -163,12 +163,10 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     virtual void rtx_timer_hook(simtime_picosec now, simtime_picosec period);
     void pacedSend();
     static void set_interdc_delay(uint64_t delay) { _interdc_delay = delay; }
-    void updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint64_t bdp_intra, uint64_t bdp_inter, uint64_t intra_queuesize, uint64_t inter_queuesize);
+    void updateParams();
 
     void track_sending_rate();
     void track_ecn_rate();
-    void check_limits_cwnd();
-    void quick_adapt(bool);
 
     Trigger *_end_trigger = 0;
     // should really be private, but loggers want to see:
@@ -179,11 +177,11 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _rtx_packets_sent;
     uint64_t _acks_received;
     uint64_t _nacks_received;
-    static simtime_picosec _interdc_delay;
+    static uint64_t _interdc_delay;
     uint64_t _pulls_received;
     uint64_t _implicit_pulls;
     uint64_t _bounces_received;
-    float _cwnd;
+    uint32_t _cwnd;
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
     uint32_t saved_acked_bytes = 0;
@@ -320,40 +318,20 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     simtime_picosec _previous_rtt_ewma;
     simtime_picosec _current_rtt_ewma;
     uint64_t _next_measurement_seq_no;
-    int64_t _bytes_until_next_epoch;
     uint32_t _consecutive_good_epochs;
     simtime_picosec _time_of_next_epoch;
     // uint64_t _bytes_receieved_since_last_epoch;
     simtime_picosec _time_of_last_qa;
     bool _first_qa_measurement;
-    vector<pair<simtime_picosec, uint64_t>> _list_current_rtt_ewma;
-    vector<pair<simtime_picosec, uint64_t>> _list_ecn_fraction;
-    vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_low;
-    vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_high;
-    vector<pair<simtime_picosec, uint64_t>> _list_baremetal_latency;
-    vector<simtime_picosec> _list_is_rtt_congested;
-    vector<simtime_picosec> _list_is_ecn_congested;
-    vector<simtime_picosec> _list_is_dual_congested;
-    bool _did_qa_this_epoch;
-    float _ecn_fraction_ewma;
-    float _ecn_count_this_window;
-    float _good_count_this_window;
-    simtime_picosec _time_of_last_epoch;
-    uint32_t _last_cwnd;
-    float _max_queue_latency;
-    uint32_t _consecutive_decreases;
 
     // LCP-Gemini.
     uint64_t _next_window_seq_no;
     simtime_picosec _current_rtt_measurement;
 
-    uint16_t _mss;
-    bool _flow_finished = false;
-    uint64_t _bdp;
-
   private:
     uint32_t _unacked;
     uint32_t _effcwnd;
+    uint16_t _mss;
     uint64_t _flow_size;
     uint64_t _rtt;
     uint64_t _rto;
@@ -363,13 +341,15 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint16_t _crt_path = 0;
     uint32_t target_window;
     // LogSimInterface *_lgs;
+    bool _flow_finished = false;
 
     bool _rtx_timeout_pending;
     bool _rtx_pending;
 
     // new CC variables
     uint64_t _target_rtt;
-    simtime_picosec _base_rtt; // Picoseconds.
+    uint64_t _base_rtt;
+    uint64_t _bdp;
     uint64_t _queue_size;
     uint32_t _consecutive_low_rtt;
     uint32_t _consecutive_no_ecn;
@@ -382,7 +362,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int trimmed_last_rtt = 0;
     uint32_t consecutive_good_medium = 0;
 
-    // SentPackets _sent_packets;
+    // MprdmaSentPackets _sent_packets;
     uint64_t _highest_data_seq;
     uint64_t t_last_decrease = 0;
     int count_skipped = 0;
@@ -395,7 +375,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int rx_count = 0;
     uint32_t achieved_bdp = 0;
     UecLogger *_logger;
-    LcpSink *_sink;
+    MprdmaSink *_sink;
 
     uint16_t _crt_direction;
     vector<int> _path_ids;                 // path IDs to be used for ECMP FIB.
@@ -411,7 +391,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<int16_t> _avoid_score; // keeps path scores
     vector<bool> _bad_path;       // keeps path scores
 
-    LcpSmarttPacer *generic_pacer = NULL;
+    MprdmaSmarttPacer *generic_pacer = NULL;
     simtime_picosec pacer_start_time = 0;
     PacketFlow _flow;
 
@@ -430,7 +410,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     std::function<void(const Packet &p)> f_flow_over_hook;
 
     list<std::tuple<simtime_picosec, bool, uint64_t, uint64_t>> _received_ecn; // list of packets received
-    vector<LcpSentPacket> _sent_packets;
+    vector<MprdmaSentPacket> _sent_packets;
     unsigned _nack_rtx_pending;
     vector<tuple<simtime_picosec, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>> _list_rtt;
     vector<pair<simtime_picosec, uint64_t>> _list_cwd;
@@ -444,7 +424,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, uint64_t>> _list_fast_increase_event;
     vector<pair<simtime_picosec, uint64_t>> _list_medium_increase_event;
     vector<pair<simtime_picosec, uint64_t>> _list_fast_decrease;
-    vector<pair<simtime_picosec, uint64_t>> _list_driving_loop;
     vector<pair<simtime_picosec, int>> us_to_cs;
     vector<pair<simtime_picosec, int>> ls_to_us;
 
@@ -504,9 +483,10 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, double>> list_sending_rate;
 
     void send_packets();
+    void quick_adapt(bool);
     uint64_t get_unacked();
 
-    void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno);
+    void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt);
     uint32_t medium_increase(simtime_picosec);
     void fast_increase();
     bool no_ecn_last_target_rtt();
@@ -527,16 +507,17 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     void processBts(UecPacket *nack);
     void simulateTrimEvent(UecAck &nack);
     void reduce_unacked(uint64_t amount);
+    void check_limits_cwnd();
     void apply_timeout_penalty();
     void update_pacing_delay();
     void quick_adapt_drop();
 };
 
-class LcpSink : public PacketSink, public DataReceiver {
-    friend class LcpSrc;
+class MprdmaSink : public PacketSink, public DataReceiver {
+    friend class MprdmaSrc;
 
   public:
-    LcpSink();
+    MprdmaSink();
 
     void receivePacket(Packet &pkt) override;
     const string &nodename() override;
@@ -545,7 +526,7 @@ class LcpSink : public PacketSink, public DataReceiver {
 
     uint64_t cumulative_ack() override;
     uint32_t drops() override;
-    void connect(LcpSrc &src, const Route *route);
+    void connect(MprdmaSrc &src, const Route *route);
     void set_paths(uint32_t num_paths);
     void set_src(uint32_t s) { _srcaddr = s; }
     uint32_t from = -1;
@@ -570,7 +551,7 @@ class LcpSink : public PacketSink, public DataReceiver {
     vector<int> _path_ids;                 // path IDs to be used for ECMP FIB.
     vector<const Route *> _original_paths; // paths in original permutation
                                            // order
-    LcpSrc *_src;
+    MprdmaSrc *_src;
     vector<int> _good_entropies_list;
 
     void send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, UecAck::seq_t ackno, const Route *rt,
@@ -580,29 +561,17 @@ class LcpSink : public PacketSink, public DataReceiver {
     bool already_received(UecPacket &pkt);
 };
 
-class LcpRtxTimerScanner : public EventSource {
+class MprdmaRtxTimerScanner : public EventSource {
   public:
-    LcpRtxTimerScanner(simtime_picosec scanPeriod, EventList &eventlist);
+    MprdmaRtxTimerScanner(simtime_picosec scanPeriod, EventList &eventlist);
     void doNextEvent();
-    void registerLcp(LcpSrc &LcpSrc);
+    void registerMprdma(MprdmaSrc &mprdmasrc);
 
   private:
     simtime_picosec _scanPeriod;
     simtime_picosec _lastScan;
-    typedef list<LcpSrc *> lcps_t;
-    lcps_t _lcps;
-};
-
-
-class LcpEpochAgent : public EventSource {
-  public:
-    LcpEpochAgent(EventList &eventlist, LcpSrc *flow);
-    void doNextEvent();
-    void registerLcp(LcpSrc &LcpSrc);
-
-  private:
-    LcpSrc *flow;
-    simtime_picosec _next_epoch_time;
+    typedef list<MprdmaSrc *> mprdmas_t;
+    mprdmas_t _mprdmas;
 };
 
 #endif

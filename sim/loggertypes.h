@@ -9,6 +9,7 @@ class NdpSrc;
 class BBRSrc;
 class UecSrc;
 class LcpSrc;
+class MprdmaSrc;
 class UecDropSrc;
 class SwiftTrimmingSrc;
 class SwiftSrc;
@@ -353,6 +354,7 @@ class UecLogger : public Logger {
     enum UecMemoryRecord { MEMORY = 0 };
     virtual void logUec(UecSrc &src, UecEvent ev) = 0;
     virtual void logUec(LcpSrc &src, UecEvent ev) = 0;
+    virtual void logUec(MprdmaSrc &src, UecEvent ev) = 0;
     virtual ~UecLogger(){};
 };
 

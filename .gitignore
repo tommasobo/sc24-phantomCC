@@ -50,3 +50,8 @@ plotting/us_to_cs
 !utilities/goal_converter/*.goal
 !traffic_gen/cdf_files/*.txt
 lulesh_slimfly_8.bin
+
+outputdata/*
+data/*
+exp_data/*
+experiments/*
