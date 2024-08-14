@@ -75,6 +75,7 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 
     _nack_rtx_pending = 0;
     current_ecn_rate = 0;
+    _next_qa_sn = 0;
 
     // new CC variables
     _hop_count = hops;
@@ -248,6 +249,16 @@ LcpSrc::~LcpSrc() {
 
         MyFileEcnFraction.close();
 
+        // ECN ewma.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_ewma/ecn_ewma" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileEcnFraction(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_ecn_ewma) {
+            MyFileEcnFraction << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileEcnFraction.close();
+
 
         MyFileRTTEWMA.close();
 
@@ -290,6 +301,26 @@ LcpSrc::~LcpSrc() {
         }
 
         MyFileUnack.close();
+
+        // Sent
+        file_name = PROJECT_ROOT_PATH / ("sim/output/sent/sent" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileSent(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_sent) {
+            MyFileSent << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileSent.close();
+
+        // Retrans
+        file_name = PROJECT_ROOT_PATH / ("sim/output/retrans/retrans" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileRetrans(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_retrans) {
+            MyFileRetrans << p.first << "," << p.second << std::endl;
+        }
+
+        MyFileRetrans.close();
 
         // NACK
         file_name = PROJECT_ROOT_PATH / ("sim/output/nack/nack" + _name + "_" + std::to_string(tag) + ".txt");
@@ -373,6 +404,16 @@ LcpSrc::~LcpSrc() {
         }
 
         MyFileFastDec.close();
+
+        // QA freed.
+        file_name = PROJECT_ROOT_PATH / ("sim/output/qa_free/qa_free" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileQAFree(file_name, std::ios_base::app);
+
+        for (const auto &p : _list_qa_free) {
+            MyFileQAFree << p << std::endl;
+        }
+
+        MyFileQAFree.close();
 
         // Medium Increase
         file_name = PROJECT_ROOT_PATH / ("sim/output/mediumi/mediumi" + _name + "_" + std::to_string(tag) + ".txt");
@@ -1343,7 +1384,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             _consecutive_good_epochs = 0;
         }
 
-        if (LCP_DO_PER_ACK_INCREASE && !(ecn || rtt > TARGET_RTT_HIGH)) { 
+        if (LCP_DO_PER_ACK_INCREASE && !(ecn || rtt > TARGET_RTT_HIGH) && ackno >= _next_qa_sn) { 
             // Should increase.
             if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
                 printf("Doing fi\n");
@@ -1372,6 +1413,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             float new_ecn_fraction = (float) _ecn_count_this_window / ((float) _good_count_this_window + (float) _ecn_count_this_window);
             _ecn_fraction_ewma = _ecn_fraction_ewma * (1.0 - LCP_ECN_ALPHA) + new_ecn_fraction * LCP_ECN_ALPHA;
 
+            _list_ecn_ewma.push_back(std::make_pair(eventlist().now() / 1000, _ecn_fraction_ewma));
+
             // Calculate the ECN reduction.
             bool is_ecn_congested = _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD && LCP_USE_ECN;
             float k = kmin_double * (float) _bdp;
@@ -1394,9 +1437,12 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             cout << _name << "_" << tag << "Current RTT: " << _current_rtt_ewma << " Previous RTT: " << _previous_rtt_ewma << " RTT Change: " << rtt_change << " Gradient: " << gradient << endl;
             if (_current_rtt_ewma > TARGET_RTT_HIGH) {
                 cout << "Consecutive Decreases: " << _consecutive_decreases << endl;
-                if (_consecutive_decreases > LCP_CONSECUTIVE_DECREASES_FOR_QA && LCP_USE_QUICK_ADAPT) {
-                    cout << "Tried QA: " << tried_qa << endl;
+                if (_consecutive_decreases > LCP_CONSECUTIVE_DECREASES_FOR_QA && LCP_USE_QUICK_ADAPT && ackno >= _next_qa_sn) {
+                    _list_qa_free.push_back(eventlist().now() / 1000);
                     quick_adapt_drop();
+                    _next_qa_sn = _highest_sent;
+
+                    // _next_qa_sn = 1000000000;
                     _did_qa_this_epoch = true;
                     _consecutive_decreases = 0;
                 } else {
@@ -1405,7 +1451,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                     _consecutive_decreases++;
                 }
             }
-            else if (_current_rtt_ewma > TARGET_RTT_LOW) {
+            else if (_current_rtt_ewma > TARGET_RTT_LOW && ackno >= _next_qa_sn) {
+                _list_qa_free.push_back(eventlist().now() / 1000);
                 rtt_reduction = 0.05;
                 is_rtt_congested = true;
                 _consecutive_decreases++;
@@ -1413,7 +1460,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                 _consecutive_decreases = 0;
             }
 
-            if (!_did_qa_this_epoch) { // Only change CWND if we haven't already done so this epoch.
+            if (!_did_qa_this_epoch && ackno >= _next_qa_sn) { // Only change CWND if we haven't already done so this epoch.
                 uint32_t cwnd_before = _cwnd;
 
                 if (is_ecn_congested || is_rtt_congested) { // If congested reduce based on max.
@@ -1734,9 +1781,10 @@ void LcpSrc::send_packets() {
             generic_pacer->just_sent();
             _paced_packet = false;
         }
-        if (from == 226 && to == 117) {
-            printf("Packet Sent1 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
-        }
+        // if (from == 226 && to == 117) {
+        printf("Packet Sent1 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
+        // }
+        _list_sent.push_back(std::make_pair(eventlist().now() / 1000, p->seqno()));
         sent_bytes_previous_window += _mss;
         if (_rtx_timeout == timeInf) {
             update_rtx_time();
@@ -1952,6 +2000,7 @@ bool LcpSrc::resend_packet(std::size_t idx) {
     if (from == 226 && to == 117) {
         printf("Packet Sent2 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
     }
+    _list_retrans.push_back(std::make_pair(eventlist().now() / 1000, _sent_packets[idx].seqno));
     sent_bytes_previous_window += _mss;
 
     // cout << "DEBUGMSGRETRANS: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  retrans_packet: " << p->seqno() << endl;

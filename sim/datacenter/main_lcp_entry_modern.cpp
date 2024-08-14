@@ -937,7 +937,7 @@ int main(int argc, char **argv) {
             fflush(stdout);
             printf("Setting CWND to %lu\n", actual_starting_cwnd);
 
-            if (src_dc != dest_dc) {
+            if (true) {
                 if (use_bbr) {
                     bbrSrc = new BBRSrc(NULL, NULL, eventlist, base_inter_rtt, bdp_inter, 100, 6);
 

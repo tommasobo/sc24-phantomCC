@@ -129,6 +129,7 @@ void initializeLoggingFolders() {
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/queue/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/acked/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/sent/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/retrans/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/nack/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/bts/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/ls_to_us/");
@@ -137,6 +138,7 @@ void initializeLoggingFolders() {
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/fastd/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/mediumi/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/ecn_rtt/");
+    std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/qa_free/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/trimmed_rtt/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/case1/");
     std::filesystem::remove_all(PROJECT_ROOT_PATH / "sim/output/case2/");
@@ -170,12 +172,14 @@ void initializeLoggingFolders() {
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/queue_phantom");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/acked");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/sent");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/retrans");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/nack");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/bts");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/ls_to_us");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/us_to_cs");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/fastd");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/fasti");
+    ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/qa_free");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/mediumi");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/ecn_rtt");
     ret_val &= std::filesystem::create_directory(PROJECT_ROOT_PATH / "sim/output/trimmed_rtt");

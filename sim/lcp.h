@@ -323,6 +323,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int64_t _bytes_until_next_epoch;
     uint32_t _consecutive_good_epochs;
     simtime_picosec _time_of_next_epoch;
+    uint64_t _next_qa_sn;
     // uint64_t _bytes_receieved_since_last_epoch;
     simtime_picosec _time_of_last_qa;
     bool _first_qa_measurement;
@@ -334,6 +335,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<simtime_picosec> _list_is_rtt_congested;
     vector<simtime_picosec> _list_is_ecn_congested;
     vector<simtime_picosec> _list_is_dual_congested;
+    vector<simtime_picosec> _list_qa_free;
+    vector<pair<simtime_picosec, uint64_t>> _list_retrans;
     bool _did_qa_this_epoch;
     float _ecn_fraction_ewma;
     float _ecn_count_this_window;
@@ -435,8 +438,10 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<tuple<simtime_picosec, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>> _list_rtt;
     vector<pair<simtime_picosec, uint64_t>> _list_cwd;
     vector<pair<simtime_picosec, uint64_t>> _list_unacked;
+    vector<pair<simtime_picosec, uint64_t>> _list_sent;
     vector<pair<simtime_picosec, uint64_t>> _list_acked_bytes;
     vector<pair<simtime_picosec, uint64_t>> _list_ecn_rtt;
+    vector<pair<simtime_picosec, double>> _list_ecn_ewma;
     vector<pair<simtime_picosec, uint64_t>> _list_ecn_received;
     vector<pair<simtime_picosec, uint64_t>> _list_trimmed_rtt;
     vector<pair<simtime_picosec, uint64_t>> _list_nack;
