@@ -69,6 +69,7 @@ extern bool LCP_USE_REGULAR_EWMA;
 extern float LCP_TARGET_RTT_HIGH_FRACTION;
 extern bool LCP_CONSTANT_DECREASE;
 extern bool LCP_DO_PER_ACK_INCREASE;
+extern uint32_t LCP_CONSECUTIVE_DECREASES_FOR_QA;
 // LCP-Gemini
 extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
 extern double LCP_GEMINI_H;

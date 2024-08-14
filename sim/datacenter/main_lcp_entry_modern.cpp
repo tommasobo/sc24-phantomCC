@@ -649,6 +649,9 @@ int main(int argc, char **argv) {
             LCP_CONSTANT_DECREASE = true;
         } else if (!strcmp(argv[i], "-per-ack")) {
             LCP_DO_PER_ACK_INCREASE = true;
+        } else if (!strcmp(argv[i], "-consec-epochs-qa")) {
+            LCP_CONSECUTIVE_DECREASES_FOR_QA = atoi(argv[i + 1]);
+            i++;
         } else {
             cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
