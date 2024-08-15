@@ -187,6 +187,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
     uint32_t saved_acked_bytes = 0;
+    simtime_picosec qa_period_time = 0;
     uint32_t saved_good_bytes = 0;
     uint32_t saved_trimmed_bytes = 0;
     static int freq;
