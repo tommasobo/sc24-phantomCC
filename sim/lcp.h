@@ -321,7 +321,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     simtime_picosec _previous_rtt_ewma;
     simtime_picosec _current_rtt_ewma;
     uint64_t _next_measurement_seq_no;
-    int64_t _bytes_until_next_epoch;
+    // int64_t _bytes_until_next_epoch;
     uint32_t _consecutive_good_epochs;
     simtime_picosec _time_of_next_epoch;
     uint64_t _next_qa_sn;
@@ -350,6 +350,16 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     // LCP-Gemini.
     uint64_t _next_window_seq_no;
     simtime_picosec _current_rtt_measurement;
+
+    // LCP-per-ack.
+    simtime_picosec _time_of_last_good_ack;
+    simtime_picosec _time_of_last_ecn;
+    simtime_picosec _ewma_time_between_good_acks;
+    simtime_picosec _ewma_time_between_ecn;
+    float _target_ecn_rate;
+    simtime_picosec _target_delay;
+    simtime_picosec _fs_range_rtt;
+
 
     uint16_t _mss;
     bool _flow_finished = false;

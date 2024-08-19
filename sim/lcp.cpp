@@ -148,7 +148,8 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     // LCP changes.
     _previous_rtt_ewma = timeFromMs(0);
     _current_rtt_ewma = timeFromMs(0);
-    _bytes_until_next_epoch = _cwnd;
+    // _bytes_until_next_epoch = _cwnd;
+    _next_measurement_seq_no = _cwnd;
     _consecutive_good_epochs = 0;
     _time_of_next_epoch = TARGET_RTT_LOW;
     _time_of_last_qa = 0;
@@ -165,6 +166,12 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     // LCP gemini.
     _next_window_seq_no = 0;
     _current_rtt_measurement = timeFromMs(0);
+
+    // LCP-per-ack.
+    _time_of_last_good_ack = 0;
+    _time_of_last_ecn = 0;
+    _ewma_time_between_good_acks = 0;
+    _ewma_time_between_ecn = 0;
 }
 
 // Add deconstructor and save data once we are done.
@@ -565,7 +572,7 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
         cout << "thestartcwnd " << starting_cwnd << endl;
         _cwnd = starting_cwnd;
     }
-    _bytes_until_next_epoch = min((uint64_t)_cwnd, _flow_size);
+    // _bytes_until_next_epoch = min((uint64_t)_cwnd, _flow_size);
 
     if (LCP_DELTA == 1) {
         LCP_DELTA = _bdp * 0.01;
@@ -594,6 +601,11 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
         exit(-1);
     }
 
+    _fs_range_rtt = BAREMETAL_RTT * (double(LCP_FS_RANGE_RTT) / 100.0);
+
+    LCP_FS_MIN_CWND = _bdp * 0.01;
+    LCP_FS_MAX_CWND = _bdp;
+
     cout << "==============================" << endl;
     cout << "Link speed: " << LINK_SPEED_MODERN << " Gbps" << endl;
     cout << "Baremetal RTT: " << BAREMETAL_RTT / 1000000 << " us" << endl;
@@ -618,6 +630,10 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     cout << "Gemini Queueing Delay Threshold: " << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << " us" << endl;
     cout << "Gemini Beta: " << LCP_GEMINI_BETA << endl;
     cout << "Gemini H: " << LCP_GEMINI_H << endl;
+    cout << "LCP_FS_RANGE_RTT: " << _fs_range_rtt << endl;
+    cout << "LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << endl;
+    cout << "LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << endl;
+    cout << "LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl;
     cout << "==============================" << endl;
 
     // Write all of this to a file in csv.
@@ -649,6 +665,10 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     MyFile << "Gemini Queueing Delay Threshold (us)," << LCP_GEMINI_TARGET_QUEUEING_LATENCY / 1000000 << std::endl;
     MyFile << "Gemini Beta," << LCP_GEMINI_BETA << std::endl;
     MyFile << "Gemini H," << LCP_GEMINI_H << std::endl;
+    MyFile << "LCP_FS_RANGE_RTT," << LCP_FS_RANGE_RTT << std::endl;
+    MyFile << "LCP_FS_RANGE_ECN," << LCP_FS_RANGE_ECN << std::endl;
+    MyFile << "LCP_FS_MIN_CWND," << LCP_FS_MIN_CWND << std::endl;
+    MyFile << "LCP_FS_MAX_CWND," << LCP_FS_MAX_CWND << std::endl;
 
     MyFile.close();
 
@@ -861,7 +881,7 @@ void LcpSrc::quick_adapt(bool trimmed) {
 }
 
 void LcpSrc::processNack(UecNack &pkt) {
-    _bytes_until_next_epoch -= _mss;
+    // _bytes_until_next_epoch -= _mss;
     num_trim++;
     count_trimmed_in_rtt++;
     consecutive_nack++;
@@ -1360,7 +1380,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
     if (algorithm_type == "lcp") {
         // We received a packet we are closer to the next epoch.
-        _bytes_until_next_epoch -= _mss;
+        // _bytes_until_next_epoch -= _mss;
 
         // Update eCN State.
         if (ecn) {
@@ -1407,7 +1427,9 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         }
 
         // Check if the next epoch has begun.
-        if (_bytes_until_next_epoch <= _mss) {
+        // if (_bytes_until_next_epoch <= _mss) {
+        if (ackno >= _next_measurement_seq_no) {
+            cout << "Epoch triggered " << _name << "_" << tag << "with " << _next_measurement_seq_no << " as next measurement seqno, time since last epoch: " << eventlist().now() - _time_of_last_epoch << endl;
             // cout << "Epoch triggereed " << _name << "_" << tag << "with " << _bytes_until_next_epoch << " bytes remaining, time since last epoch: " << eventlist().now() - _time_of_last_epoch << endl;
             // cout << " Cwnd before: " << _last_cwnd << " Cwnd after: " << _cwnd << " Good: " << _good_count_this_window << " ECN: " << _ecn_count_this_window << endl;
             _last_cwnd = _cwnd;
@@ -1499,7 +1521,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                 _list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT / 1000));
             }
             check_limits_cwnd();
-            _bytes_until_next_epoch = _cwnd;
+            // _bytes_until_next_epoch = _cwnd;
+            _next_measurement_seq_no = ackno + _cwnd;
         }
 
         check_limits_cwnd();
@@ -1572,8 +1595,96 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
             MyFile4.close();
         }
-    } else if (algorithm_type == "tcp") {
-        _cwnd +=  (float) _mss * (float) _mss / (float)_cwnd;
+    } else if (algorithm_type == "lcp-per-ack") {
+        // Update ECN.
+
+        // First update the times between.
+        if (ecn) {
+            _ecn_count_this_window++;
+        } else {
+            _good_count_this_window++;
+        }
+
+        // Timer fire for ecn?
+        if (eventlist().now() - _time_of_last_ecn > _current_rtt_ewma) {
+            float new_ecn_fraction = (float) _good_count_this_window + (float) _ecn_count_this_window == 0 ? 0.0 : (float) _ecn_count_this_window / ((float) _good_count_this_window + (float) _ecn_count_this_window);
+            _ecn_fraction_ewma = _ecn_fraction_ewma == 0 ? 
+                                  new_ecn_fraction :
+                                    _ecn_fraction_ewma * (1.0 - LCP_ECN_ALPHA) + new_ecn_fraction * LCP_ECN_ALPHA;
+            _good_count_this_window = 0;
+            _ecn_count_this_window = 0;
+            _time_of_last_ecn = eventlist().now();
+            quick_adapt(false);
+            _consecutive_good_epochs++;
+        }
+
+        // // Make sure the ewma times aren't bigger than the largest double.
+        // assert(_ewma_time_between_ecn < std::numeric_limits<double>::max());
+
+        // // Then update ecn rate.
+        // _ecn_fraction_ewma = _ewma_time_between_ecn + _ewma_time_between_good_acks == 0 ? 
+        //                           0.0 :
+        //                           (double) _ewma_time_between_ecn / (double) (_ewma_time_between_ecn + _ewma_time_between_good_acks);
+
+        // Update the current RTT.
+        _current_rtt_ewma = _current_rtt_ewma == 0 ? rtt : (simtime_picosec)(_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt);
+                    
+        // Now update our targets.
+        // ECN rate target.
+        double alpha = LCP_FS_RANGE_ECN / (1/sqrt(LCP_FS_MIN_CWND) - 1/sqrt(LCP_FS_MAX_CWND));
+        double beta = -alpha / sqrt(LCP_FS_MAX_CWND);
+        _target_ecn_rate = max(0.0, min(alpha / sqrt((float)_cwnd) + beta, 1.0));
+
+        // RTT target.
+        alpha = _fs_range_rtt / (1/sqrt(LCP_FS_MIN_CWND) - 1/sqrt(LCP_FS_MAX_CWND));
+        beta = -alpha / sqrt(LCP_FS_MAX_CWND);
+        if (_cwnd < LCP_FS_MIN_CWND) {
+            _target_delay = BAREMETAL_RTT + _fs_range_rtt;
+        } else if (_cwnd >= LCP_FS_MAX_CWND) {
+            _target_delay = BAREMETAL_RTT;
+        } else {
+            _target_delay = BAREMETAL_RTT + alpha / sqrt((float)_cwnd) + beta;
+        }
+        cout << "Target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << _fs_range_rtt << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl << "ALpha: " << alpha << " Beta: " << beta << endl;
+        assert(_target_delay >= BAREMETAL_RTT);
+
+        uint32_t cwnd_before = _cwnd;
+        uint32_t num_acks = _cwnd / _mss;
+
+        if ((_current_rtt_ewma > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
+             LCP_USE_QUICK_ADAPT &&
+             ackno >= _next_qa_sn) {
+            quick_adapt_drop();
+            _next_qa_sn = _highest_sent;
+        } else {
+            if (_current_rtt_ewma > _target_delay || _ecn_fraction_ewma > _target_ecn_rate) {
+                // We're in a bad state, decrease the window by 5% prorated across the acks.
+                _cwnd -= 0.05 * _cwnd / num_acks;
+                _consecutive_good_epochs = 0;
+            } else {
+                if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
+                    fast_increase();
+                } else {
+                    _cwnd += (uint32_t) LCP_DELTA / num_acks;
+                }
+            }
+        }
+
+        cout << "CWND change: " << nodename() << " from " << cwnd_before << " to " << _cwnd << " target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << LCP_FS_RANGE_RTT << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl;
+
+        if (COLLECT_DATA) {
+            _list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, _current_rtt_ewma / 1000));
+            _list_ecn_ewma.push_back(std::make_pair(eventlist().now() / 1000, _ecn_fraction_ewma));
+            _list_target_rtt_low.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_LOW / 1000));
+            _list_target_rtt_high.push_back(std::make_pair(eventlist().now() / 1000, TARGET_RTT_HIGH / 1000));
+            _list_baremetal_latency.push_back(std::make_pair(eventlist().now() / 1000, BAREMETAL_RTT / 1000));
+        }
+        check_limits_cwnd();
+
+        // cout << "DEBUGMSGACK: Node: " << _name << "_" << std::to_string(tag) << " Time: " << eventlist().now() / 1000000 << "  ac_ received: " << ackno << endl;
+    } else {
+        cerr << "Unknown algorithm type: " << algorithm_type << endl;
+        exit(1);
     }
 
     check_limits_cwnd();

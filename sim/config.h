@@ -76,6 +76,11 @@ extern uint32_t LCP_CONSECUTIVE_DECREASES_FOR_QA;
 extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
 extern double LCP_GEMINI_H;
 extern double LCP_GEMINI_BETA;
+// LCP-Per-ACK
+extern double LCP_FS_MIN_CWND;
+extern double LCP_FS_MAX_CWND;
+extern simtime_picosec LCP_FS_RANGE_RTT;
+extern double LCP_FS_RANGE_ECN;
 //
 extern uint64_t MAX_CWD_OLD_NDP;
 extern uint64_t ENABLE_FAST_DROP;

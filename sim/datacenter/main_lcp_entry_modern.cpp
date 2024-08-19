@@ -171,6 +171,7 @@ int main(int argc, char **argv) {
     bool use_uec = false;
     int i = 1;
     filename << "logout.dat";
+    bool use_scheme_2 = false;
 
     while (i < argc) {
         if (!strcmp(argv[i], "-o")) {
@@ -226,7 +227,8 @@ int main(int argc, char **argv) {
             // kmin as percentage of queue size (0..100)
             kmin = atoi(argv[i + 1]);
             cout << "KMin: " << atoi(argv[i + 1]) << endl;
-            CompositeQueue::set_kMin(kmin);
+            CompositeQueue::set_kMin(kmin-1);
+            CompositeQueue::set_kMax(kmin);
             LcpSrc::set_kmin(kmin / 100.0);
             UecSrc::set_kmin(kmin / 100.0);
             i++;
@@ -657,7 +659,16 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-consec-epochs-qa")) {
             LCP_CONSECUTIVE_DECREASES_FOR_QA = atoi(argv[i + 1]);
             i++;
-        } else {
+        } else if (!strcmp(argv[i], "-fs-range-rtt")) {
+            LCP_FS_RANGE_RTT = atoi(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-fs-range-ecn")) {
+            LCP_FS_RANGE_ECN = atof(argv[i + 1]);
+            i++;
+        } else if (!strcmp(argv[i], "-use-scheme-2")) {
+            use_scheme_2 = true;
+        }  
+        else {
             cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
         }
@@ -667,7 +678,11 @@ int main(int argc, char **argv) {
     if (use_tcp) {
         LcpSrc::set_alogirthm("tcp");
     } else {
-        LcpSrc::set_alogirthm("lcp");
+        if (use_scheme_2) {
+            LcpSrc::set_alogirthm("lcp-per-ack");
+        } else {
+            LcpSrc::set_alogirthm("lcp");
+        }
     }
     UecSrc::set_alogirthm("intersmartt");
     MprdmaSrc::set_alogirthm("mprdma");

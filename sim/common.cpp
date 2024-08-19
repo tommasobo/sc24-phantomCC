@@ -87,3 +87,8 @@ uint32_t LCP_CONSECUTIVE_DECREASES_FOR_QA = 3;
 simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY = 0;
 double LCP_GEMINI_H = 0.0;
 double LCP_GEMINI_BETA = 0.0;
+// LCP-Per-ACK Specific Values.
+double LCP_FS_MIN_CWND = 10;
+double LCP_FS_MAX_CWND = 100;
+double LCP_FS_RANGE_ECN = 0.5;
+simtime_picosec LCP_FS_RANGE_RTT = 5;
