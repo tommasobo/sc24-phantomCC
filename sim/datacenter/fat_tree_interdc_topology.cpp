@@ -539,6 +539,8 @@ void FatTreeInterDCTopology::set_custom_params(uint32_t no_of_nodes) {
     cout << "ToR switches per pod: " << _tor_switches_per_pod << endl;
     cout << "Agg switches per pod: " << _agg_switches_per_pod << endl;
     cout << "No of core switches: " << no_of_core_switches << endl;
+    cout << "Tor uplinks: " << no_of_tor_uplinks << endl;
+    cout << "Agg uplinks: " << no_of_agg_uplinks << endl;
     for (uint32_t tier = TOR_TIER; tier < _tiers; tier++) {
         cout << "Tier " << tier << " QueueSize Down " << _queue_down[tier] << " bytes" << endl;
         if (tier < CORE_TIER)

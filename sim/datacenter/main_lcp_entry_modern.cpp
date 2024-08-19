@@ -607,7 +607,10 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-alpha")) {
             LCP_ALPHA = atof(argv[i + 1]);
             i++;
-        } else if (!strcmp(argv[i], "-beta")) {
+        } else if (!strcmp(argv[i], "-ecn_alpha")) {
+            LCP_ECN_ALPHA = atof(argv[i + 1]);
+            i++;
+        }else if (!strcmp(argv[i], "-beta")) {
             LCP_BETA = atof(argv[i + 1]);
             i++;
         } else if (!strcmp(argv[i], "-gamma")) {
@@ -649,6 +652,8 @@ int main(int argc, char **argv) {
             LCP_CONSTANT_DECREASE = true;
         } else if (!strcmp(argv[i], "-per-ack")) {
             LCP_DO_PER_ACK_INCREASE = true;
+        } else if (!strcmp(argv[i], "-rtt-off")) {
+            LCP_OFF_RTT = true;
         } else if (!strcmp(argv[i], "-consec-epochs-qa")) {
             LCP_CONSECUTIVE_DECREASES_FOR_QA = atoi(argv[i + 1]);
             i++;
@@ -937,7 +942,7 @@ int main(int argc, char **argv) {
             fflush(stdout);
             printf("Setting CWND to %lu\n", actual_starting_cwnd);
 
-            if (true) {
+            if (src_dc != dest_dc) {
                 if (use_bbr) {
                     bbrSrc = new BBRSrc(NULL, NULL, eventlist, base_inter_rtt, bdp_inter, 100, 6);
 

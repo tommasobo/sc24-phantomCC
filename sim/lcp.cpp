@@ -826,16 +826,16 @@ void LcpSrc::resetQACounting() {
         acked_bytes = 0;
         tot_pkt_seen_qa = 0;
         need_quick_adapt = true;
-        printf("%d resetted QA at %lu\n", from, eventlist().now() / 1000);
+        // printf("%d resetted QA at %lu\n", from, eventlist().now() / 1000);
     }
 }
 
 void LcpSrc::quick_adapt_drop() {
     if (saved_acked_bytes > 0 && _did_qa_this_epoch == false) {
         // Update window and ignore count
-        cout << "Quick Adapt: " << _name << "_" << tag << " going from " << _cwnd << " to " << saved_acked_bytes << endl;
-        cout << "Current rtt ewma: " << _current_rtt_ewma << endl;
-        cout << "Baremetal_RTT: " << BAREMETAL_RTT << endl;
+        // cout << "Quick Adapt: " << _name << "_" << tag << " going from " << _cwnd << " to " << saved_acked_bytes << endl;
+        // cout << "Current rtt ewma: " << _current_rtt_ewma << endl;
+        // cout << "Baremetal_RTT: " << BAREMETAL_RTT << endl;
         _cwnd = saved_acked_bytes * bonus_drop * ((float) (BAREMETAL_RTT/1000) / (float) (qa_period_time/1000));
         _list_fast_decrease.push_back(
                         std::make_pair(eventlist().now() / 1000, 1));
@@ -1178,9 +1178,9 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
         consecutive_good_medium = 0;
     }
 
-    if (from == 0 && count_total_ack % 10 == 0) {
-        printf("Currently at Pkt %d\n", count_total_ack);
-    }
+    // if (from == 0 && count_total_ack % 10 == 0) {
+    //     printf("Currently at Pkt %d\n", count_total_ack);
+    // }
 
     if (!marked) {
         _consecutive_no_ecn += _mss;
@@ -1273,9 +1273,9 @@ uint64_t LcpSrc::get_unacked() {
 void LcpSrc::receivePacket(Packet &pkt) {
     // every packet received represents one less packet in flight
 
-    if (from == 226 && to == 117) {
-        printf("Packet Received from %d to %d at %lu - Type %d\n", from, to, GLOBAL_TIME / 1000, pkt.type());
-    }
+    // if (from == 226 && to == 117) {
+    //     printf("Packet Received from %d to %d at %lu - Type %d\n", from, to, GLOBAL_TIME / 1000, pkt.type());
+    // }
 
     if (pkt._queue_full || pkt.bounced() == false) {
         reduce_unacked(_mss);
@@ -1349,10 +1349,10 @@ void LcpSrc::receivePacket(Packet &pkt) {
 }
 
 void LcpSrc::fast_increase() {
-    printf("From %d - Fast Increase at %lu\n", from, GLOBAL_TIME / 1000);
+    // printf("From %d - Fast Increase at %lu\n", from, GLOBAL_TIME / 1000);
     uint32_t old_cwnd = _cwnd;
     _cwnd += _mss;
-    cout << "CWND change: " << _name + "_" + std::to_string(tag) << " FI from " << old_cwnd << " to " << _cwnd << " maxcwnd: " << _maxcwnd << endl;
+    // cout << "CWND change: " << _name + "_" + std::to_string(tag) << " FI from " << old_cwnd << " to " << _cwnd << " maxcwnd: " << _maxcwnd << endl;
     _list_fast_increase_event.push_back(std::make_pair(eventlist().now() / 1000, 1));
 }
 
@@ -1388,27 +1388,28 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         }
 
         // Perform per-ack increase if necessary.
-        if (LCP_DO_PER_ACK_INCREASE && !(ecn || rtt > TARGET_RTT_HIGH) && ackno >= _next_qa_sn) { 
+        // if (LCP_DO_PER_ACK_INCREASE && !(ecn || rtt > TARGET_RTT_HIGH) && ackno >= _next_qa_sn) { 
+        if (LCP_DO_PER_ACK_INCREASE && ackno >= _next_qa_sn) { 
             // Should increase.
             if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-                printf("Doing fi\n");
+                // printf("Doing fi\n");
                 fast_increase();
             } else {
                 // Do a regular increase.
                 // Increase the window.
                 uint32_t num_acks = _cwnd / _mss;
                 uint32_t cwnd_before = _cwnd;
-                if (_current_rtt_ewma < TARGET_RTT_LOW) {
-                    _cwnd += (uint32_t) LCP_DELTA / num_acks;
-                    cout << "    CWND change: " << _name << "_" << tag << " less than all, go from " << cwnd_before << " to " << _cwnd << " num_acks: " << num_acks << " increasing by " << (uint32_t) LCP_DELTA / num_acks << "LCP_DELTA: " << LCP_DELTA << endl;
-                }
+                // if (_current_rtt_ewma < TARGET_RTT_LOW) {
+                _cwnd += (uint32_t) LCP_DELTA / num_acks;
+                // cout << "    CWND change: " << _name << "_" << tag << " less than all, go from " << cwnd_before << " to " << _cwnd << " num_acks: " << num_acks << " increasing by " << (uint32_t) LCP_DELTA / num_acks << "LCP_DELTA: " << LCP_DELTA << endl;
+                // }
             }
         }
 
         // Check if the next epoch has begun.
         if (_bytes_until_next_epoch <= _mss) {
-            cout << "Epoch triggereed " << _name << "_" << tag << "with " << _bytes_until_next_epoch << " bytes remaining, time since last epoch: " << eventlist().now() - _time_of_last_epoch << endl;
-            cout << " Cwnd before: " << _last_cwnd << " Cwnd after: " << _cwnd << " Good: " << _good_count_this_window << " ECN: " << _ecn_count_this_window << endl;
+            // cout << "Epoch triggereed " << _name << "_" << tag << "with " << _bytes_until_next_epoch << " bytes remaining, time since last epoch: " << eventlist().now() - _time_of_last_epoch << endl;
+            // cout << " Cwnd before: " << _last_cwnd << " Cwnd after: " << _cwnd << " Good: " << _good_count_this_window << " ECN: " << _ecn_count_this_window << endl;
             _last_cwnd = _cwnd;
             _time_of_last_epoch = eventlist().now();
 
@@ -1428,6 +1429,10 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             // Calculate the RTT reduction.
             bool is_rtt_congested = _current_rtt_ewma > TARGET_RTT_LOW && ackno >= _next_qa_sn;
             float rtt_reduction = is_rtt_congested ? 0.05 : 0.0;
+            if (LCP_OFF_RTT) {
+                is_rtt_congested = false;
+                rtt_reduction = 0.0;
+            }
 
             // Should we quick adapt? Check if our metrics are very bad.
             if (_current_rtt_ewma > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) {
@@ -1441,15 +1446,6 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                     _consecutive_decreases = 0;
                 } 
             } 
-
-            // // Update our consecutive decreases.
-            // if (is_rtt_congested || is_ecn_congested) {
-            //     _consecutive_decreases++;
-            //     _consecutive_good_epochs = 0;
-            // } else {
-            //     _consecutive_decreases = 0;
-            //     _consecutive_good_epochs++;
-            // }
 
             if (!_did_qa_this_epoch && ackno >= _next_qa_sn) { // Only change CWND if we haven't already done so this epoch and not waiting for QA.
                 uint32_t cwnd_before = _cwnd;
@@ -1468,22 +1464,22 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                         _list_is_ecn_congested.push_back(eventlist().now() / 1000);
                     }
 
-                    cout << "    CWND change at " << eventlist().now() / 1000000 << ": " << change_type << " " << _name << "_" << tag << " congested from " << cwnd_before << " to " <<
-                            _cwnd << " max_reduction: " << max_reduction <<
-                            " ecn_reduction: " << ecn_reduction << " rtt_reduction: " << rtt_reduction <<
-                            " is_ecn_congested: " << is_ecn_congested << " is_rtt_congested: " << is_rtt_congested << " k: " << k << " F: " << F << " ecn_fraction: " << _ecn_fraction_ewma << endl;
+                    // cout << "    CWND change at " << eventlist().now() / 1000000 << ": " << change_type << " " << _name << "_" << tag << " congested from " << cwnd_before << " to " <<
+                    //         _cwnd << " max_reduction: " << max_reduction <<
+                    //         " ecn_reduction: " << ecn_reduction << " rtt_reduction: " << rtt_reduction <<
+                    //         " is_ecn_congested: " << is_ecn_congested << " is_rtt_congested: " << is_rtt_congested << " k: " << k << " F: " << F << " ecn_fraction: " << _ecn_fraction_ewma << endl;
                 } else { // If not congested increase if we're not doing per-ack.
                     _consecutive_good_epochs++;
                     _consecutive_decreases = 0;
-                    cout << "    CWND change at " << eventlist().now() / 1000000 << ": " << " " << _name << "_" << tag << "No reduction" << endl;
+                    // cout << "    CWND change at " << eventlist().now() / 1000000 << ": " << " " << _name << "_" << tag << "No reduction" << endl;
                     if (!LCP_DO_PER_ACK_INCREASE) {
                         // Increase the window.
                         if (_current_rtt_ewma < TARGET_RTT_LOW) {
                             _cwnd += (uint32_t) LCP_DELTA;
-                            cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
+                            // cout << "    CWND change: " << nodename() << " less than all, go from " << cwnd_before << " to " << _cwnd << endl;
                         } else {
                             _cwnd += (uint32_t) LCP_DELTA / 10;
-                            cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
+                            // cout << "    CWND change: " << nodename() << " between with negative gradient go from " << cwnd_before << " to " << _cwnd << " delta: " << LCP_DELTA << endl;
                         }
                     }
                 }
@@ -1523,7 +1519,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
         // Additive increase.
         if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-            printf("Doing fi\n");
+            // printf("Doing fi\n");
             fast_increase();
         } {
             _cwnd += (double)LCP_GEMINI_H / ((double)_cwnd / (double)_mss);
@@ -1772,7 +1768,7 @@ void LcpSrc::send_packets() {
             _paced_packet = false;
         }
         // if (from == 226 && to == 117) {
-        printf("Packet Sent1 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
+        // printf("Packet Sent1 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
         // }
         _list_sent.push_back(std::make_pair(eventlist().now() / 1000, p->seqno()));
         sent_bytes_previous_window += _mss;
@@ -1987,9 +1983,9 @@ bool LcpSrc::resend_packet(std::size_t idx) {
         generic_pacer->just_sent();
         _paced_packet = false;
     }
-    if (from == 226 && to == 117) {
-        printf("Packet Sent2 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
-    }
+    // if (from == 226 && to == 117) {
+    //     printf("Packet Sent2 from %d to %d at %lu\n", from, to, GLOBAL_TIME / 1000);
+    // }
     _list_retrans.push_back(std::make_pair(eventlist().now() / 1000, _sent_packets[idx].seqno));
     sent_bytes_previous_window += _mss;
 

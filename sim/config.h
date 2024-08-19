@@ -65,6 +65,7 @@ extern bool LCP_USE_AGGRESSIVE_DECREASE;
 extern float LCP_ECN_ALPHA;
 extern float LCP_ECN_FRACTION_THRESHOLD_LOW;
 extern float LCP_ECN_FRACTION_THRESHOLD_HIGH;
+extern bool LCP_OFF_RTT;
 extern bool LCP_USE_ECN;
 extern bool LCP_USE_REGULAR_EWMA;
 extern float LCP_TARGET_RTT_HIGH_FRACTION;
