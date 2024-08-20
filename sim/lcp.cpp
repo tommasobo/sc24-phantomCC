@@ -1596,14 +1596,19 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             MyFile4.close();
         }
     } else if (algorithm_type == "lcp-per-ack") {
-        // Update ECN.
+        bool ecn_should_reduce = false;
+        bool rtt_should_reduce = false;
 
-        // First update the times between.
+        // First update ecn.
         if (ecn) {
+            ecn_should_reduce = true;
             _ecn_count_this_window++;
         } else {
             _good_count_this_window++;
         }
+
+        // Update RTT.
+        rtt_should_reduce = rtt > TARGET_RTT_LOW;
 
         // Timer fire for ecn?
         if (eventlist().now() - _time_of_last_ecn > _current_rtt_ewma) {
@@ -1616,45 +1621,28 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             _time_of_last_ecn = eventlist().now();
             quick_adapt(false);
             _consecutive_good_epochs++;
+            _consecutive_good_epochs = 0;
         }
-
-        // Update the current RTT.
-        _current_rtt_ewma = _current_rtt_ewma == 0 ? rtt : (simtime_picosec)(_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt);
-                    
-        // Now update our targets.
-        // ECN rate target.
-        double alpha = LCP_FS_RANGE_ECN / (1/sqrt(LCP_FS_MIN_CWND) - 1/sqrt(LCP_FS_MAX_CWND));
-        double beta = -alpha / sqrt(LCP_FS_MAX_CWND);
-        _target_ecn_rate = max(0.0, min(alpha / sqrt((float)_cwnd) + beta, 1.0));
-
-        // RTT target.
-        alpha = _fs_range_rtt / (1/sqrt(LCP_FS_MIN_CWND) - 1/sqrt(LCP_FS_MAX_CWND));
-        beta = -alpha / sqrt(LCP_FS_MAX_CWND);
-        if (_cwnd < LCP_FS_MIN_CWND) {
-            _target_delay = BAREMETAL_RTT + _fs_range_rtt;
-        } else if (_cwnd >= LCP_FS_MAX_CWND) {
-            _target_delay = BAREMETAL_RTT;
-        } else {
-            _target_delay = BAREMETAL_RTT + alpha / sqrt((float)_cwnd) + beta;
-        }
-        // cout << "Target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << _fs_range_rtt << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl << "ALpha: " << alpha << " Beta: " << beta << endl;
-        assert(_target_delay >= BAREMETAL_RTT);
 
         uint32_t cwnd_before = _cwnd;
         uint32_t num_acks = _cwnd / _mss;
 
-        if ((_current_rtt_ewma > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
+        if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
              LCP_USE_QUICK_ADAPT &&
              ackno >= _next_qa_sn) {
             quick_adapt_drop();
             _next_qa_sn = _highest_sent;
+            _consecutive_good_epochs = 0;
         } else {
-            if (_current_rtt_ewma > _target_delay || _ecn_fraction_ewma > _target_ecn_rate) {
+            if (rtt_should_reduce || ecn_should_reduce) {
                 // We're in a bad state, decrease the window by 5% prorated across the acks.
                 _cwnd -= 0.05 * _cwnd / num_acks;
                 _consecutive_good_epochs = 0;
             } else {
+                // cout << "Rtt should not reduce: " << rtt_should_reduce << " ecn should not reduce: " << ecn_should_reduce << "rtt: " << rtt << " target rtt low: " << TARGET_RTT_LOW << " ecn fraction: " << _ecn_fraction_ewma << " LCP_ECN_FRACTION_THRESHOLD_HIGH: " << LCP_ECN_FRACTION_THRESHOLD_HIGH << endl;
+                // cout << "   USE_FI: " << LCP_USE_FAST_INCREASE << " consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
                 if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
+                    // cout << "Doing fast increase: consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
                     fast_increase();
                 } else {
                     _cwnd += (uint32_t) LCP_DELTA / num_acks;
