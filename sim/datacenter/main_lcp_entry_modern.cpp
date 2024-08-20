@@ -221,6 +221,7 @@ int main(int argc, char **argv) {
             LINK_SPEED_MODERN = atoi(argv[i + 1]);
             cout << "Link speed: " << atof(argv[i + 1]) << " Mbps" << endl;
             LINK_SPEED_MODERN = LINK_SPEED_MODERN / 1000;
+            INTER_LINK_SPEED_MODERN = LINK_SPEED_MODERN / 10;
             // Saving this for UEC reference, Gbps
             i++;
         } else if (!strcmp(argv[i], "-kmin")) {
@@ -724,18 +725,20 @@ int main(int argc, char **argv) {
 
     uint64_t base_inter_rtt = 2 * (inter_hops - 1) * (1000 * LINK_DELAY_MODERN + switch_latency)  +  // All DCN latencies.
                               2 * (interdc_delay)                  +  // InterDC latencies.
-                              1000 * inter_hops * (PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN                +  // Packet transmission delays.
-                              1000 * inter_hops * 64 * 8 / LINK_SPEED_MODERN;                            // Ack transmission delays. 
+                              1000 * inter_hops * (PKT_SIZE_MODERN + 64) * 8 / INTER_LINK_SPEED_MODERN                +  // Packet transmission delays.
+                              1000 * inter_hops * 64 * 8 / INTER_LINK_SPEED_MODERN;                            // Ack transmission delays. 
 
     uint64_t base_intra_rtt = 2 * intra_hops * (LINK_DELAY_MODERN * 1000 + switch_latency)        +  // All DCN latencies.
                               1000 * intra_hops * (PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN                +  // Packet transmission delays.
                               1000 * intra_hops * 64 * 8 / LINK_SPEED_MODERN;                               // Ack transmission delays. 
 
-    uint64_t bdp_inter = (uint64_t) ((float)base_inter_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
+    uint64_t bdp_inter = (uint64_t) ((float)base_inter_rtt / 1000.0 * (float) INTER_LINK_SPEED_MODERN / 8.0);
     uint64_t bdp_intra = (uint64_t) ((float)base_intra_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
 
     inter_queuesize = bdp_inter; // Equal to BDP if not other info
-    intra_queuesize = bdp_intra; // Equal to BDP if not other info            
+    // intra_queuesize = bdp_intra; // Equal to BDP if not other info  
+    
+    intra_queuesize = 0.1 * bdp_inter;          
 
     if (queue_size_ratio != 0) {
         inter_queuesize *= queue_size_ratio;

@@ -80,8 +80,8 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     // new CC variables
     _hop_count = hops;
 
-    _base_rtt = ((_hop_count * LINK_DELAY_MODERN) + ((PKT_SIZE_MODERN + 64) * 8 / LINK_SPEED_MODERN * _hop_count) +
-                 +(_hop_count * LINK_DELAY_MODERN) + (64 * 8 / LINK_SPEED_MODERN * _hop_count)) *
+    _base_rtt = ((_hop_count * LINK_DELAY_MODERN) + ((PKT_SIZE_MODERN + 64) * 8 / INTER_LINK_SPEED_MODERN * _hop_count) +
+                 +(_hop_count * LINK_DELAY_MODERN) + (64 * 8 / INTER_LINK_SPEED_MODERN * _hop_count)) *
                 1000;
 
     if (precision_ts != 1) {
@@ -107,7 +107,7 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 
     _next_pathid = 1;
 
-    _bdp = (_base_rtt * LINK_SPEED_MODERN / 8) / 1000;
+    _bdp = (_base_rtt * INTER_LINK_SPEED_MODERN / 8) / 1000;
     _queue_size = _bdp; // Temporary
     initial_x_gain = x_gain;
     initial_z_gain = z_gain;
@@ -129,7 +129,7 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     /* printf("Link Delay %d - Link Speed %lu - Pkt Size %d - Base RTT %lu - "
            "Target RTT is %lu - BDP %lu - CWND %u - Hops %d - Stop Pacing "
            "%lu\n",
-           LINK_DELAY_MODERN, LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt, _bdp, _cwnd, _hop_count,
+           LINK_DELAY_MODERN, INTER_LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt, _bdp, _cwnd, _hop_count,
            stop_pacing_after_rtt); */
 
     _max_good_entropies = 10; // TODO: experimental value
@@ -543,7 +543,7 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
         _base_rtt = (((_base_rtt + precision_ts - 1) / precision_ts) * precision_ts);
     }
 
-    int time_to_drain_queue = _switch_queue_size * 8 / LINK_SPEED_MODERN * 1000;
+    int time_to_drain_queue = _switch_queue_size * 8 / INTER_LINK_SPEED_MODERN * 1000;
 
     _target_rtt = _base_rtt + time_to_drain_queue * ((target_rtt_percentage_over_base + 1) / 100.0 + 1);
 
@@ -579,14 +579,14 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     }
     BAREMETAL_RTT = _base_rtt;
     TARGET_RTT_LOW = BAREMETAL_RTT * 1.05;
-    float queue_latency_ns = (float) queuesize_bytes * 8 / (float) LINK_SPEED_MODERN;
+    float queue_latency_ns = (float) queuesize_bytes * 8 / (float) INTER_LINK_SPEED_MODERN;
     _max_queue_latency = queue_latency_ns;
     TARGET_RTT_HIGH = LCP_TARGET_RTT_HIGH_FRACTION * queue_latency_ns * 1000.0 + BAREMETAL_RTT;
     cout << "TARGET_RTT_HIGH: " << TARGET_RTT_HIGH << endl;
     cout << "    queue_latency_ns: " << queue_latency_ns << endl;
     cout << "    baremetal_rtt: " << BAREMETAL_RTT << endl;
     cout << "    queuesize_bytes: " << queuesize_bytes << endl;
-    cout << "    LINK_SPEED_MODERN: " << LINK_SPEED_MODERN << endl;
+    cout << "    INTER_LINK_SPEED_MODERN: " << INTER_LINK_SPEED_MODERN << endl;
 
     assert(TARGET_RTT_HIGH > TARGET_RTT_LOW);
 
@@ -607,7 +607,7 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     LCP_FS_MAX_CWND = _bdp;
 
     cout << "==============================" << endl;
-    cout << "Link speed: " << LINK_SPEED_MODERN << " Gbps" << endl;
+    cout << "Link speed: " << INTER_LINK_SPEED_MODERN << " Gbps" << endl;
     cout << "Baremetal RTT: " << BAREMETAL_RTT / 1000000 << " us" << endl;
     cout << "Target RTT Low: " << TARGET_RTT_LOW / 1000000 << " us" << endl;
     cout << "Target RTT High: " << TARGET_RTT_HIGH / 1000000 << " us" << endl;
@@ -640,13 +640,13 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     std::string file_name = PROJECT_ROOT_PATH / ("sim/output/params/params" + _name + "_" + std::to_string(tag) + ".txt");
     std::ofstream MyFile(file_name, std::ios_base::app);
 
-    MyFile << "Link speed (Gbps)," << LINK_SPEED_MODERN << std::endl;
+    MyFile << "Link speed (Gbps)," << INTER_LINK_SPEED_MODERN << std::endl;
     MyFile << "BDP (KB)," << _bdp / 1000 << std::endl;
     MyFile << "Baremetal RTT (us)," << BAREMETAL_RTT / 1000000 << std::endl;
     MyFile << "Target RTT Low (us)," << TARGET_RTT_LOW / 1000000 << std::endl;
     MyFile << "Target RTT High (us)," << TARGET_RTT_HIGH / 1000000 << std::endl;
     MyFile << "MSS (bytes)," << PKT_SIZE_MODERN << std::endl;
-    float max_queueing_latency_us = ((float) (queuesize_bytes * 8) / (float) LINK_SPEED_MODERN) / 1000.0;
+    float max_queueing_latency_us = ((float) (queuesize_bytes * 8) / (float) INTER_LINK_SPEED_MODERN) / 1000.0;
     MyFile << "Max Queueing Latency (us)," << max_queueing_latency_us << std::endl;
     MyFile << "Starting cwnd (bytes)," << starting_cwnd << std::endl;
     MyFile << "Queue Size (bytes)," << queuesize_bytes << std::endl;
@@ -708,7 +708,7 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
            "Target RTT is %lu - Drain Queue %lu - BDP %lu - CWND %u - Queue "
            "Size %lu - Hops %d - Stop Pacing "
            "%lu\n",
-           LINK_DELAY_MODERN, _interdc_delay / 1000, LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt,
+           LINK_DELAY_MODERN, _interdc_delay / 1000, INTER_LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt,
            time_to_drain_queue, _bdp, _cwnd, _switch_queue_size, _hop_count, stop_pacing_after_rtt);
     fflush(stdout);
     _max_good_entropies = 10; // TODO: experimental value
@@ -1280,14 +1280,14 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
 }
 
 uint64_t LcpSrc::get_unacked() {
-    // return _unacked;
-    uint64_t missing = 0;
-    for (const auto &sp : _sent_packets) {
-        if (!sp.acked && !sp.nacked && !sp.timedOut) {
-            missing += _mss;
-        }
-    }
-    return missing;
+    return _unacked;
+    // uint64_t missing = 0;
+    // for (const auto &sp : _sent_packets) {
+    //     if (!sp.acked && !sp.nacked && !sp.timedOut) {
+    //         missing += _mss;
+    //     }
+    // }
+    // return missing;
 }
 
 void LcpSrc::receivePacket(Packet &pkt) {
@@ -1618,14 +1618,6 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             _consecutive_good_epochs++;
         }
 
-        // // Make sure the ewma times aren't bigger than the largest double.
-        // assert(_ewma_time_between_ecn < std::numeric_limits<double>::max());
-
-        // // Then update ecn rate.
-        // _ecn_fraction_ewma = _ewma_time_between_ecn + _ewma_time_between_good_acks == 0 ? 
-        //                           0.0 :
-        //                           (double) _ewma_time_between_ecn / (double) (_ewma_time_between_ecn + _ewma_time_between_good_acks);
-
         // Update the current RTT.
         _current_rtt_ewma = _current_rtt_ewma == 0 ? rtt : (simtime_picosec)(_current_rtt_ewma * (1.0 - LCP_ALPHA) + LCP_ALPHA * rtt);
                     
@@ -1645,7 +1637,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         } else {
             _target_delay = BAREMETAL_RTT + alpha / sqrt((float)_cwnd) + beta;
         }
-        cout << "Target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << _fs_range_rtt << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl << "ALpha: " << alpha << " Beta: " << beta << endl;
+        // cout << "Target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << _fs_range_rtt << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl << "ALpha: " << alpha << " Beta: " << beta << endl;
         assert(_target_delay >= BAREMETAL_RTT);
 
         uint32_t cwnd_before = _cwnd;
@@ -1670,7 +1662,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
             }
         }
 
-        cout << "CWND change: " << nodename() << " from " << cwnd_before << " to " << _cwnd << " target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << LCP_FS_RANGE_RTT << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl;
+        // cout << "CWND change: " << nodename() << " from " << cwnd_before << " to " << _cwnd << " target delay: " << _target_delay << " current rtt: " << _current_rtt_ewma << " target ecn rate: " << _target_ecn_rate << " current ecn rate: " << _ecn_fraction_ewma << " LCP_FS_RANGE_RTT: " << LCP_FS_RANGE_RTT << " LCP_FS_RANGE_ECN: " << LCP_FS_RANGE_ECN << " LCP_FS_MIN_CWND: " << LCP_FS_MIN_CWND << " LCP_FS_MAX_CWND: " << LCP_FS_MAX_CWND << endl;
 
         if (COLLECT_DATA) {
             _list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, _current_rtt_ewma / 1000));

@@ -28,6 +28,7 @@ typedef uint64_t simtime_picosec;
 extern simtime_picosec GLOBAL_TIME;
 extern int PKT_SIZE_MODERN;
 extern uint64_t LINK_SPEED_MODERN;
+extern uint64_t INTER_LINK_SPEED_MODERN;
 extern int SINGLE_PKT_TRASMISSION_TIME_MODERN;
 extern int LINK_DELAY_MODERN;
 extern uint64_t HOPS;
