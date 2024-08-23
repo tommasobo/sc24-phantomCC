@@ -188,6 +188,7 @@ class MprdmaSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint32_t saved_good_bytes = 0;
     uint32_t saved_trimmed_bytes = 0;
     static int freq;
+    static float gemini_f;
     uint32_t last_decrease = 0;
     uint32_t drop_amount = 0;
     uint32_t count_total_ecn = 0;

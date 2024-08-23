@@ -17,6 +17,7 @@ int LcpSrc::jump_to = 0;
 double LcpSrc::kmax_double;
 bool LcpSrc::use_bts = false;
 double LcpSrc::kmin_double;
+double LcpSrc::gemini_f = 0.0;
 std::string LcpSrc::queue_type = "composite";
 std::string LcpSrc::algorithm_type = "standard_trimming";
 bool LcpSrc::use_fast_drop = false;
@@ -539,6 +540,11 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
         cout << "Base RTT (6): " << _base_rtt << endl;
     }
 
+    // // Update k such that it's a percentage of intra_queuesize.
+    // LCP_K = (float) intra_queuesize * kmax_double;
+    // // LCP_K = (float) inter_queuesize * kmax_double;
+    // cout << "LCP_K: " << LCP_K << " intra_queuesize: " << intra_queuesize << " kmax_double: " << kmax_double << endl;
+
     if (precision_ts != 1) {
         _base_rtt = (((_base_rtt + precision_ts - 1) / precision_ts) * precision_ts);
     }
@@ -874,7 +880,7 @@ void LcpSrc::quick_adapt(bool trimmed) {
         qa_period_time = eventlist().now() - _time_of_last_qa;
     }
 
-    cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
+    // cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
     _time_of_last_qa = eventlist().now();
 
     acked_bytes = 0;
@@ -903,7 +909,7 @@ void LcpSrc::processNack(UecNack &pkt) {
 
     check_limits_cwnd();
 
-    _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
+    // _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
     _consecutive_no_ecn = 0;
     _consecutive_low_rtt = 0;
     _received_ecn.push_back(std::make_tuple(eventlist().now(), true, _mss, _target_rtt + 10000));
@@ -1139,7 +1145,7 @@ void LcpSrc::processBts(UecPacket *pkt) {
     // }
     check_limits_cwnd();
 
-    _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
+    // _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
     _consecutive_no_ecn = 0;
     _consecutive_low_rtt = 0;
     _received_ecn.push_back(std::make_tuple(eventlist().now(), true, _mss, _target_rtt + 10000));
@@ -1263,7 +1269,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
 
         _last_acked = seqno;
 
-        _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
+        // _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
         // printf("Window Is %d - From %d To %d\n", _cwnd, from, to);
         current_pkt++;
         // printf("Triggering ADJ\n");
@@ -1382,7 +1388,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         // We received a packet we are closer to the next epoch.
         // _bytes_until_next_epoch -= _mss;
 
-        // Update eCN State.
+        // Update ECN State.
         if (ecn) {
             _ecn_count_this_window++;
         } else {
@@ -1444,7 +1450,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
 
             // Calculate the ECN reduction.
             bool is_ecn_congested = _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_LOW && LCP_USE_ECN && ackno >= _next_qa_sn;
-            float k = kmin_double * (float) _bdp;
+            float k = ((float) LCP_K);
             float F = 4.0 * k / ((float) _bdp + k);
             float ecn_reduction = is_ecn_congested ? _ecn_fraction_ewma * F : 0.0;
             
@@ -1627,25 +1633,34 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         uint32_t cwnd_before = _cwnd;
         uint32_t num_acks = _cwnd / _mss;
 
-        if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
-             LCP_USE_QUICK_ADAPT &&
-             ackno >= _next_qa_sn) {
-            quick_adapt_drop();
-            _next_qa_sn = _highest_sent;
-            _consecutive_good_epochs = 0;
-        } else {
-            if (rtt_should_reduce || ecn_should_reduce) {
-                // We're in a bad state, decrease the window by 5% prorated across the acks.
-                _cwnd -= 0.05 * _cwnd / num_acks;
+        if (ackno >= _next_qa_sn) {
+            if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
+                LCP_USE_QUICK_ADAPT) {
+                quick_adapt_drop();
+                _next_qa_sn = _highest_sent;
                 _consecutive_good_epochs = 0;
             } else {
-                // cout << "Rtt should not reduce: " << rtt_should_reduce << " ecn should not reduce: " << ecn_should_reduce << "rtt: " << rtt << " target rtt low: " << TARGET_RTT_LOW << " ecn fraction: " << _ecn_fraction_ewma << " LCP_ECN_FRACTION_THRESHOLD_HIGH: " << LCP_ECN_FRACTION_THRESHOLD_HIGH << endl;
-                // cout << "   USE_FI: " << LCP_USE_FAST_INCREASE << " consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
-                if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-                    // cout << "Doing fast increase: consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
-                    fast_increase();
+                if (rtt_should_reduce || ecn_should_reduce) {
+                    float k = ((float) LCP_K);
+                    float F = 4.0 * k / ((float) _bdp + k);
+                    // cout << "BDP: " << _bdp << " k: " << k << " F: " << F << endl;
+                    // cout << "F: " << F << " k: " << k << " bdp: " << _bdp << endl;
+                    // We're in a bad state, decrease the window by 5% prorated across the acks.
+                    _cwnd -= LCP_BETA * _mss;
+                    // _cwnd -= gemini_f * _mss;
+                    // _cwnd -= * _mss / 12.0 ;
+                    // cout << "LCP F: " << gemini_f << endl;
+                    // _cwnd -= (0.33 * _mss);
+                    _consecutive_good_epochs = 0;
                 } else {
-                    _cwnd += (uint32_t) LCP_DELTA / num_acks;
+                    // cout << "Rtt should not reduce: " << rtt_should_reduce << " ecn should not reduce: " << ecn_should_reduce << "rtt: " << rtt << " target rtt low: " << TARGET_RTT_LOW << " ecn fraction: " << _ecn_fraction_ewma << " LCP_ECN_FRACTION_THRESHOLD_HIGH: " << LCP_ECN_FRACTION_THRESHOLD_HIGH << endl;
+                    // cout << "   USE_FI: " << LCP_USE_FAST_INCREASE << " consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
+                    if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
+                        // cout << "Doing fast increase: consecutive good epochs: " << _consecutive_good_epochs << " LCP_FAST_INCREASE_THRESHOLD: " << LCP_FAST_INCREASE_THRESHOLD << endl;
+                        fast_increase();
+                    } else {
+                        _cwnd += (uint32_t) LCP_DELTA / num_acks;
+                    }
                 }
             }
         }
@@ -1666,6 +1681,8 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         cerr << "Unknown algorithm type: " << algorithm_type << endl;
         exit(1);
     }
+
+    _list_cwd.push_back(std::make_pair(eventlist().now() / 1000, _cwnd));
 
     check_limits_cwnd();
 }

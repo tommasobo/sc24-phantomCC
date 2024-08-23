@@ -4,7 +4,7 @@ HDRS=network.h ndp.h ndptunnel.h queue_lossless.h queue_lossless_input.h bbr_pac
 
 
 CC=g++ -fPIC
-CFLAGS = -Wall -std=c++17 -g -Wsign-compare -Wuninitialized  -fPIC
+CFLAGS = -Wall -std=c++17 -g -Wsign-compare -Wuninitialized  -fPIC -ggdb
 #CFLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
 CFLAGS += -O2
 

@@ -68,7 +68,7 @@ def get_range_remote_dc(src_idx, number_hosts):
     else:
         return 0, number_hosts/2
 
-def get_dst(src_idx: int, number_hosts: int, intra_dc_perc: int) -> int:
+def get_dst(src_idx: int, number_hosts: int, intra_dc_perc: float) -> int:
     """Get a random destination host index that is not the same as the source host index.
 
     Args:
@@ -79,22 +79,16 @@ def get_dst(src_idx: int, number_hosts: int, intra_dc_perc: int) -> int:
         int: The destination host index.
     """
 
-    if (intra_dc_perc is None):
-        dst_idx = random.randint(0, number_hosts - 1)
-        # Ensure sender is not the same as receiver.
+    if (stay_intra_dc(intra_dc_perc/100)):
+        dc_start, dc_end = get_range_dc(src_idx, number_hosts)
+        dst_idx = random.randint(dc_start, dc_end)
         while dst_idx == src_idx:
-            dst_idx = random.randint(0, number_hosts - 1)
-        return dst_idx  
+            dst_idx = random.randint(dc_start, dc_end)
+        return dst_idx, True
     else:
-        if (stay_intra_dc(intra_dc_perc/100)):
-            dc_start, dc_end = get_range_dc(src_idx, number_hosts)
+        dc_start, dc_end = get_range_remote_dc(src_idx, number_hosts)
+        # print(dc_start, dc_end)
+        dst_idx = random.randint(dc_start, dc_end)
+        while dst_idx == src_idx:
             dst_idx = random.randint(dc_start, dc_end)
-            while dst_idx == src_idx:
-                dst_idx = random.randint(dc_start, dc_end)
-            return dst_idx  
-        else:
-            dc_start, dc_end = get_range_remote_dc(src_idx, number_hosts)
-            dst_idx = random.randint(dc_start, dc_end)
-            while dst_idx == src_idx:
-                dst_idx = random.randint(dc_start, dc_end)
-            return dst_idx  
+        return dst_idx, False

@@ -221,16 +221,20 @@ int main(int argc, char **argv) {
             LINK_SPEED_MODERN = atoi(argv[i + 1]);
             cout << "Link speed: " << atof(argv[i + 1]) << " Mbps" << endl;
             LINK_SPEED_MODERN = LINK_SPEED_MODERN / 1000;
-            INTER_LINK_SPEED_MODERN = LINK_SPEED_MODERN / 10;
+            // INTER_LINK_SPEED_MODERN = LINK_SPEED_MODERN / 10;
+            INTER_LINK_SPEED_MODERN = LINK_SPEED_MODERN;
             // Saving this for UEC reference, Gbps
             i++;
         } else if (!strcmp(argv[i], "-kmin")) {
             // kmin as percentage of queue size (0..100)
             kmin = atoi(argv[i + 1]);
+            kmax = kmin;
             cout << "KMin: " << atoi(argv[i + 1]) << endl;
             CompositeQueue::set_kMin(kmin-1);
             CompositeQueue::set_kMax(kmin);
-            LcpSrc::set_kmin(kmin / 100.0);
+            LcpSrc::set_kmin((kmin-1) / 100.0);
+            LcpSrc::set_kmax(kmin / 100.0);
+            UecSrc::set_kmin((kmin-1) / 100.0);
             UecSrc::set_kmin(kmin / 100.0);
             i++;
         } else if (!strcmp(argv[i], "-k")) {
@@ -330,6 +334,7 @@ int main(int argc, char **argv) {
             use_pacing = atoi(argv[i + 1]);
             LcpSrc::set_use_pacing(use_pacing);
             UecSrc::set_use_pacing(use_pacing);
+            MprdmaSrc::set_use_pacing(use_pacing);
             i++;
         } else if (!strcmp(argv[i], "-fast_drop")) {
             LcpSrc::set_fast_drop(atoi(argv[i + 1]));
@@ -736,13 +741,25 @@ int main(int argc, char **argv) {
     uint64_t bdp_intra = (uint64_t) ((float)base_intra_rtt / 1000.0 * (float) LINK_SPEED_MODERN / 8.0);
 
     inter_queuesize = bdp_inter; // Equal to BDP if not other info
-    // intra_queuesize = bdp_intra; // Equal to BDP if not other info  
+    intra_queuesize = bdp_intra; // Equal to BDP if not other info  
     
-    intra_queuesize = 0.1 * bdp_inter;          
+    // intra_queuesize = 0.1 * bdp_inter;          
+
+    // Small mprdpma thing.
+    assert (kmax != -1);
+    // Use as the F.
+    float gemini_k = ((float) kmax / 100.0) * intra_queuesize;
+    MprdmaSrc::gemini_f = 4.0 * gemini_k / (gemini_k + bdp_intra);
+    cout << "Gemini F: " << MprdmaSrc::gemini_f << " K: " << gemini_k << " BDP: " << bdp_intra << " Intra: " << intra_queuesize << endl;
+    gemini_k = ((float) kmax / 100.0) * inter_queuesize;
+    LcpSrc::gemini_f =  4.0 * gemini_k / (gemini_k + bdp_inter);
+    cout << "LCP F: " << LcpSrc::gemini_f << " K: " << gemini_k << " BDP: " << bdp_inter << " Inter: " << inter_queuesize << endl;
 
     if (queue_size_ratio != 0) {
         inter_queuesize *= queue_size_ratio;
     }
+
+    CompositeQueue::set_phantom_queue_size(inter_queuesize);
 
     cout << "BW: " << LINK_SPEED_MODERN << " Gbps" << endl << "Intra: " << "\n  RTT(ps): " << base_intra_rtt << "\n  BDP(B): " << bdp_intra << "\n  Queue(B): " << intra_queuesize << "\nInter: " << "\n  RTT(ps): " << base_inter_rtt << "\n  BDP(B): " << bdp_inter << "\n  Queue(B): " << inter_queuesize << endl;
 
@@ -1344,7 +1361,7 @@ int main(int argc, char **argv) {
                     inter_agents.push_back(lcpEpochAgent);
                 }
             } else {
-                MprdmaSrc::set_starting_cwnd(actual_starting_cwnd);
+                MprdmaSrc::set_starting_cwnd(bdp);
 
                 mprdmaSrc = new MprdmaSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
 

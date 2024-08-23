@@ -1192,14 +1192,14 @@ void UecSrc::processAck(UecAck &pkt, bool force_marked) {
 }
 
 uint64_t UecSrc::get_unacked() {
-    // return _unacked;
-    uint64_t missing = 0;
-    for (const auto &sp : _sent_packets) {
-        if (!sp.acked && !sp.nacked && !sp.timedOut) {
-            missing += _mss;
-        }
-    }
-    return missing;
+    return _unacked;
+    // uint64_t missing = 0;
+    // for (const auto &sp : _sent_packets) {
+    //     if (!sp.acked && !sp.nacked && !sp.timedOut) {
+    //         missing += _mss;
+    //     }
+    // }
+    // return missing;
 }
 
 void UecSrc::receivePacket(Packet &pkt) {

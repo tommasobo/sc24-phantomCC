@@ -14,6 +14,7 @@
 
 // Static Parameters
 int MprdmaSrc::jump_to = 0;
+float MprdmaSrc::gemini_f = 0.0;
 double MprdmaSrc::kmax_double;
 bool MprdmaSrc::use_bts = false;
 double MprdmaSrc::kmin_double;
@@ -21,7 +22,7 @@ std::string MprdmaSrc::queue_type = "composite";
 std::string MprdmaSrc::algorithm_type = "standard_trimming";
 bool MprdmaSrc::use_fast_drop = false;
 int MprdmaSrc::fast_drop_rtt = 1;
-bool MprdmaSrc::use_pacing = false;
+bool MprdmaSrc::use_pacing = true;
 simtime_picosec MprdmaSrc::pacing_delay = 0;
 bool MprdmaSrc::do_jitter = false;
 bool MprdmaSrc::do_exponential_gain = false;
@@ -139,6 +140,7 @@ MprdmaSrc::MprdmaSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eve
     if (use_pacing && generic_pacer == NULL) {
         generic_pacer = new MprdmaSmarttPacer(eventlist(), *this);
         pacer_start_time = eventlist().now();
+        cout << "CWND: " << _cwnd << " base_rtt: " << _base_rtt << endl;
         pacing_delay = ((4160 * 8) / ((_cwnd * 8) / (_base_rtt / 1000)));
         printf("Setting the pacing delay1 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
                GLOBAL_TIME / 1000);
@@ -1110,9 +1112,9 @@ void MprdmaSrc::processAck(UecAck &pkt, bool force_marked) {
         consecutive_good_medium = 0;
     }
 
-    if (from == 0 && count_total_ack % 10 == 0) {
-        printf("Currently at Pkt %d\n", count_total_ack);
-    }
+    // if (from == 0 && count_total_ack % 10 == 0) {
+    //     printf("Currently at Pkt %d\n", count_total_ack);
+    // }
 
     if (!marked) {
         _consecutive_no_ecn += _mss;
@@ -1766,7 +1768,9 @@ void MprdmaSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt)
                 }
             }
             if (ecn) {
-                _cwnd -= _mss / 2;
+                // cout << "Gemini f: " << gemini_f << endl;
+                // _cwnd -= (gemini_f * _mss);
+                _cwnd -= (0.33 * _mss);
             } else {
                 _cwnd += _mss * _mss / _cwnd;
             }

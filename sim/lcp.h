@@ -258,6 +258,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     static int ratio_os_stage_1;
     static int once_per_rtt;
     static double kmax_double;
+    static double gemini_f;
     static bool use_bts;
     static double kmin_double;
     double phantom_size_calc = 0;

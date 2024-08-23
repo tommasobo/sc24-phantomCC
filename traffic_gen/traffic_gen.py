@@ -22,11 +22,13 @@ DEFAULT_NUM_FLOWS = 5000
 DEFAULT_DURATION_S = 1
 DEFAULT_OUTPUT_FILE_PATH = "cdf_traffic.txt"
 DEFAULT_SEED = None
+MESSAGE_SIZE_BYTES = 10000000
 
 # Constants.
 NS_IN_S = 1e9
 US_IN_S = 1e6
 BYTE_TO_BIT = 8.0
+
 
 
 class Flow(
@@ -56,14 +58,14 @@ def add_commandline_options():
         type=int,
         help="(Required) The number of hosts, must be larger than 1.",
     )
-    # Optional options.
-    arg_parser.add_argument(
-        "-c",
-        "--cdf_file_path",
-        required=True,
-        type=str,
-        help="(Required) The path of the file with the traffic size cdf.",
-    )
+    # # Optional options.
+    # arg_parser.add_argument(
+    #     "-c",
+    #     "--cdf_file_path",
+    #     required=True,
+    #     type=str,
+    #     help="(Required) The path of the file with the traffic size cdf.",
+    # )
     arg_parser.add_argument(
         "-l",
         "--load",
@@ -125,6 +127,16 @@ def add_commandline_options():
         help=(
             "The seed for the random number generators, by default None which"
             " means using the system time."
+        ),
+    )
+    arg_parser.add_argument(
+        "-p",
+        "--flow_size",
+        default=MESSAGE_SIZE_BYTES,
+        type=int,
+        help=(
+            "The size of the flow in bytes, by default"
+            f" {MESSAGE_SIZE_BYTES}."
         ),
     )
     arg_parser.add_argument(
@@ -191,8 +203,9 @@ def main():
     sim_duration_ns = args.sim_duration_s * NS_IN_S
     total_flows = args.total_flows
     output_file_path = args.output_file_path
-    cdf_file_path = args.cdf_file_path
+    # cdf_file_path = args.cdf_file_path
     seed = args.seed
+    MESSAGE_SIZE_BYTES = args.flow_size
 
     # Argument validation.
     if not args.nhost or args.nhost < 2:
@@ -205,25 +218,31 @@ def main():
     except (ValueError, TypeError) as e:
         sys.exit(f"Bandwidth format incorrect: {e}")
 
-    # Create a custom random generator and set the seed.
-    custom_rand = CustomRandomNumberGenerator()
-    random.seed(seed)
+    # # Create a custom random generator and set the seed.
+    # custom_rand = CustomRandomNumberGenerator()
+    # random.seed(seed)
 
-    # Read the CDF file.
-    if not custom_rand.set_cdf_from_file(cdf_file_path):
-        sys.exit("Error: Not a valid CDF.")
-
-    MESSAGE_SIZE_BYTES = 10000000
+    # # Read the CDF file.
+    # if not custom_rand.set_cdf_from_file(cdf_file_path):
+    #     sys.exit("Error: Not a valid CDF.")
 
     # Calculate the average inter-arrival time (in ns).
-    avg_msg_size_bits = custom_rand.calculate_average_value() * BYTE_TO_BIT
+    # avg_msg_size_bits = custom_rand.calculate_average_value() * BYTE_TO_BIT
     avg_msg_size_bits = MESSAGE_SIZE_BYTES * 8
     print(f"Average message size (in bits): {avg_msg_size_bits}")
-    avg_load_bps = bandwidth_bps * load
+    print(f"Bandwidth (in bps): {bandwidth_bps}")
+    # print(f"Load: {load}")
+
+    avg_load_bps = bandwidth_bps * load / 100
     print(f"Average load (in bps): {avg_load_bps}")
-    avg_inter_arrival_time_ns = total_flows * (avg_msg_size_bits / avg_load_bps) * NS_IN_S
+    avg_inter_arrival_time_ns = nhost * (avg_msg_size_bits / avg_load_bps) * NS_IN_S
 
     print(f"Average inter-arrival time (in ns): {avg_inter_arrival_time_ns}")
+
+    num_inter = 0
+    num_intra = 0
+
+    src_to_num_flows = {i: 0 for i in range(nhost)}
 
     # Generate flows.
     flow_list: list[Flow] = []
@@ -232,7 +251,13 @@ def main():
             exponential_dist_sample(avg_inter_arrival_time_ns)
         )
         while flow_start_time_ns < base_time_ns + sim_duration_ns:
-            dst_idx_ = get_dst(src_idc, nhost, args.intra_dc_percentage)
+            dst_idx_, is_intra = get_dst(src_idc, nhost, args.intra_dc_percentage)
+            if is_intra:
+                num_intra += 1
+                # print("Intra dst: ", dst_idx_)
+            else:
+                num_inter += 1
+                # print("Inter dst: ", dst_idx_)
             #flow_size_bytes = max(int(custom_rand.generate_random_number()), 1)
             flow_size_bytes = MESSAGE_SIZE_BYTES
             flow_list.append(
@@ -246,6 +271,10 @@ def main():
             flow_start_time_ns += int(
                 exponential_dist_sample(avg_inter_arrival_time_ns)
             )
+
+            if not src_idc in src_to_num_flows:
+                src_to_num_flows[src_idc] = 0
+            src_to_num_flows[src_idc] += 1
     # Sort the flow list by increasing order of start time.
     flow_list.sort(key=lambda flow: flow.start_time_s)
 
@@ -254,6 +283,15 @@ def main():
 
     # Export flow list to file with the desired format.
     export_flows(nhost, flow_list, output_file_path)
+
+    print("Achieved intra ratio: ", num_intra/(num_intra+num_inter))
+
+
+    # Make sure all sources have at least two flows.
+    for src, num_flows in src_to_num_flows.items():
+        if num_flows < 2:
+            print(f"Source {src} has only {num_flows} flows.")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

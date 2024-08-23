@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -std=c++17 -g -Wsign-compare
+CFLAGS = -Wall -std=c++17 -g -Wsign-compare -ggdb
 #CFLAGS += -fsanitize=address -fno-omit-frame-pointer -fsanitize=undefined
 CFLAGS += -O2 -fPIC
 CRT=`pwd`

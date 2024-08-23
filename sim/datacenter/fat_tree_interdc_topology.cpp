@@ -1311,11 +1311,11 @@ void FatTreeInterDCTopology::init_network() {
             for (int link_num = 0; link_num < _num_links_between_borders; link_num++) {
 
                 printf("Creating link between border switches %d and %d - %lu %lu\n", link_num, link_num,
-                       _downlink_speeds[0] / 10, _inter_queuesize);
+                       _downlink_speeds[0], _inter_queuesize);
 
                 // UpLinks Queues and Pipes
                 queues_nborderl_nborderu[border_l][border_u][link_num] =
-                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0] / 10, _inter_queuesize, UPLINK, BORDER_TIER, false);
+                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0], _inter_queuesize, UPLINK, BORDER_TIER, false);
 
                 queues_nborderl_nborderu[border_l][border_u][link_num]->setName(
                         "DC" + ntoa(0) + "-BORDER" + ntoa(border_l) + "->BORDER" + ntoa(border_u) +
@@ -1329,7 +1329,7 @@ void FatTreeInterDCTopology::init_network() {
 
                 // DownLinks Queues and Pipes
                 queues_nborderu_nborderl[border_u][border_l][link_num] =
-                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0] / 10, _inter_queuesize, DOWNLINK, BORDER_TIER, false);
+                        alloc_queue_no_ecn(queueLogger, _downlink_speeds[0], _inter_queuesize, DOWNLINK, BORDER_TIER, false);
 
                 queues_nborderu_nborderl[border_u][border_l][link_num]->setName(
                         "DC" + ntoa(1) + "-BORDER" + ntoa(border_u) + "->BORDER" + ntoa(border_l) + "_LINK" +
