@@ -873,17 +873,19 @@ void LcpSrc::quick_adapt_drop() {
 }
 
 void LcpSrc::quick_adapt(bool trimmed) {
-    if (_first_qa_measurement) {
-        _first_qa_measurement = false;
-    } else {
-        saved_acked_bytes = acked_bytes;
-        qa_period_time = eventlist().now() - _time_of_last_qa;
+    if (acked_bytes > 0) {
+        if (_first_qa_measurement) {
+            _first_qa_measurement = false;
+        } else {
+            saved_acked_bytes = acked_bytes;
+            qa_period_time = eventlist().now() - _time_of_last_qa;
+        }
+
+        cout << "QADEBUG " << _name << "_" << tag <<  ": Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
+        _time_of_last_qa = eventlist().now();
+
+        acked_bytes = 0;
     }
-
-    // cout << "QADEBUG: Acked bytes " << saved_acked_bytes << " time since last qa: " << eventlist().now() - _time_of_last_qa << endl;
-    _time_of_last_qa = eventlist().now();
-
-    acked_bytes = 0;
 }
 
 void LcpSrc::processNack(UecNack &pkt) {
@@ -1617,27 +1619,37 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         rtt_should_reduce = rtt > TARGET_RTT_LOW;
 
         // Timer fire for ecn?
-        if (eventlist().now() - _time_of_last_ecn > _current_rtt_ewma) {
+        if (eventlist().now() - _time_of_last_ecn > rtt) {
+            _time_of_last_ecn = eventlist().now();
+
+            // ECN update.
             float new_ecn_fraction = (float) _good_count_this_window + (float) _ecn_count_this_window == 0 ? 0.0 : (float) _ecn_count_this_window / ((float) _good_count_this_window + (float) _ecn_count_this_window);
             _ecn_fraction_ewma = _ecn_fraction_ewma == 0 ? 
                                   new_ecn_fraction :
                                     _ecn_fraction_ewma * (1.0 - LCP_ECN_ALPHA) + new_ecn_fraction * LCP_ECN_ALPHA;
             _good_count_this_window = 0;
             _ecn_count_this_window = 0;
-            _time_of_last_ecn = eventlist().now();
+
+            // QA update.
+            _did_qa_this_epoch = false;
             quick_adapt(false);
-            _consecutive_good_epochs++;
-            _consecutive_good_epochs = 0;
+
+            // FI update.
+            if (ackno >= _next_qa_sn) {
+                _consecutive_good_epochs++;
+            }
+
         }
 
         uint32_t cwnd_before = _cwnd;
         uint32_t num_acks = _cwnd / _mss;
 
         if (ackno >= _next_qa_sn) {
-            if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) &&
-                LCP_USE_QUICK_ADAPT) {
+            bool can_quick_adapt = LCP_USE_QUICK_ADAPT && !_did_qa_this_epoch && saved_acked_bytes > 0;
+            if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) && can_quick_adapt) {
                 quick_adapt_drop();
                 _next_qa_sn = _highest_sent;
+                cout << "Quick adapt triggered "  << _name << "_" << tag <<  ": current ackno: " << ackno << " next qa sn: " << _next_qa_sn << " highest sent: " << _highest_sent << endl;
                 _consecutive_good_epochs = 0;
             } else {
                 if (rtt_should_reduce || ecn_should_reduce) {

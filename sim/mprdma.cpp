@@ -790,21 +790,21 @@ void MprdmaSrc::processNack(UecNack &pkt) {
         /* printf("Exit Processing Nack - %f %f\n", current_ecn_rate, previous_ecn_rate); */
     }
 
-    if (eventlist().now() > ignore_for_time) {
-        reduce_cwnd(uint64_t(_mss * decrease_on_nack));
-    }
+    // if (eventlist().now() > ignore_for_time) {
+    //     reduce_cwnd(uint64_t(_mss * decrease_on_nack));
+    // }
 
-    if (use_fast_drop) {
-        if (count_received >= ignore_for) {
-            if (eventlist().now() > next_qa) {
-                need_quick_adapt = true;
-                quick_adapt(true);
-            }
-            if (generic_pacer != NULL) {
-                generic_pacer->cancel();
-            }
-        }
-    }
+    // if (use_fast_drop) {
+    //     if (count_received >= ignore_for) {
+    //         if (eventlist().now() > next_qa) {
+    //             need_quick_adapt = true;
+    //             quick_adapt(true);
+    //         }
+    //         if (generic_pacer != NULL) {
+    //             generic_pacer->cancel();
+    //         }
+    //     }
+    // }
 
     check_limits_cwnd();
 
@@ -1770,7 +1770,7 @@ void MprdmaSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt)
             if (ecn) {
                 // cout << "Gemini f: " << gemini_f << endl;
                 // _cwnd -= (gemini_f * _mss);
-                _cwnd -= (0.33 * _mss);
+                _cwnd -= (0.15 * _mss);
             } else {
                 _cwnd += _mss * _mss / _cwnd;
             }

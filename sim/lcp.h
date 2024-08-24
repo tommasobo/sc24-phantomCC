@@ -360,6 +360,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     float _target_ecn_rate;
     simtime_picosec _target_delay;
     simtime_picosec _fs_range_rtt;
+    simtime_picosec _time_of_next_period;
 
 
     uint16_t _mss;

@@ -710,11 +710,22 @@ void NdpSrc::processAck(const NdpAck &ack) {
     _flight_size -= _mss;
     assert(_flight_size >= 0);
 
+    cout << "Ackno: " << ackno << " Cum Ackno: " << cum_ackno << " Highest Sent: " << _highest_sent << endl;
+
     if (cum_ackno >= _flow_size) {
 
         if (f_flow_over_hook) {
             f_flow_over_hook(ack);
         }
+
+        
+        // FCT.
+        auto fct_file_name = PROJECT_ROOT_PATH / ("sim/output/fct/fct" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileFCT(fct_file_name, std::ios_base::app);
+
+        MyFileFCT << timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time) << std::endl;
+
+        MyFileFCT.close();
 
         cout << "Flow " << _name << " flow_id " << flow_id() << " finished at " << timeAsUs(eventlist().now())
              << " total bytes " << cum_ackno << endl;

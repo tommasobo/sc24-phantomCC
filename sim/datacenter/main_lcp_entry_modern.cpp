@@ -24,6 +24,8 @@
 #include "uec.h"
 #include "bbr.h"
 #include "mprdma.h"
+#include "dctcp.h"
+#include "ndp.h"
 #include <filesystem>
 // #include "vl2_topology.h"
 
@@ -164,14 +166,19 @@ int main(int argc, char **argv) {
     bool topology_normal = true;
     simtime_picosec interdc_delay = 0;
     uint64_t max_queue_size = 0;
-    double def_end_time = 0.5;
+    double def_end_time = 5.0;
     int num_periods = 1;
     bool use_bbr = false;
     bool use_tcp = false;
     bool use_uec = false;
+    bool use_dctcp = false;
+    bool use_ndp = false;
+
     int i = 1;
     filename << "logout.dat";
     bool use_scheme_2 = false;
+
+    std::string inter_algo = "lcp";
 
     while (i < argc) {
         if (!strcmp(argv[i], "-o")) {
@@ -646,14 +653,8 @@ int main(int argc, char **argv) {
             LCP_USE_PACING = false;
         } else if (!strcmp(argv[i], "-use-min")) {
             LCP_USE_MIN_RTT = true;
-        }  else if (!strcmp(argv[i], "-use-ad")) {
+        } else if (!strcmp(argv[i], "-use-ad")) {
             LCP_USE_AGGRESSIVE_DECREASE = true;
-        } else if (!strcmp(argv[i], "-use-bbr")) {
-            use_bbr = true;
-        } else if (!strcmp(argv[i], "-use-tcp")) {
-            use_tcp = true;
-        } else if (!strcmp(argv[i], "-use-uec")) {
-            use_uec = true;
         } else if (!strcmp(argv[i], "-use-regular-ewma")) {
             LCP_USE_REGULAR_EWMA = true;
         } else if (!strcmp(argv[i], "-use-constant-decrease")) {
@@ -673,23 +674,32 @@ int main(int argc, char **argv) {
             i++;
         } else if (!strcmp(argv[i], "-use-scheme-2")) {
             use_scheme_2 = true;
-        }  
-        else {
+        } else if (!strcmp(argv[i], "-inter-algo")) {
+            inter_algo = argv[i + 1];
+            if (inter_algo == "lcp-per-ack") {
+                LcpSrc::set_alogirthm("lcp-per-ack");
+            } else if (inter_algo == "bbr") {
+                use_bbr = true;
+            } else if (inter_algo == "dctcp") {
+                use_dctcp = true;
+            } else if (inter_algo == "uec") {
+                use_uec = true;
+            } else if (inter_algo == "ndp") {
+                use_ndp = true;
+            } else if (inter_algo == "lcp") {
+                LcpSrc::set_alogirthm("lcp");
+            } else {
+                cout << "Unknown inter algo " << inter_algo << endl;
+                exit_error(argv[0]);
+            }
+            i++;
+        } else {
             cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);
         }
         i++;
     }
 
-    if (use_tcp) {
-        LcpSrc::set_alogirthm("tcp");
-    } else {
-        if (use_scheme_2) {
-            LcpSrc::set_alogirthm("lcp-per-ack");
-        } else {
-            LcpSrc::set_alogirthm("lcp");
-        }
-    }
     UecSrc::set_alogirthm("intersmartt");
     MprdmaSrc::set_alogirthm("mprdma");
 
@@ -802,10 +812,20 @@ int main(int argc, char **argv) {
     BBRSrc::setRouteStrategy(route_strategy);
     BBRSink::setRouteStrategy(route_strategy);
 
+    // NdpTrafficLogger ndp_traffic_logger = NdpTrafficLogger();
+    // logfile.addLogger(ndp_traffic_logger);
+    NdpSrc::setMinRTO(1000); // increase RTO to avoid spurious retransmits
+    NdpSrc::setRouteStrategy(route_strategy);
+    NdpSink::setRouteStrategy(route_strategy);
+    NdpRtxTimerScanner ndpRtxScanner(timeFromUs((uint32_t)1000), eventlist);
+
     // Route *routeout, *routein;
     // double extrastarttime;
 
     int dest;
+
+    fflush(stdout);
+
 
     if (topology_normal) {
 
@@ -946,6 +966,11 @@ int main(int argc, char **argv) {
         MprdmaSink *mprdmaSink;
         BBRSrc *bbrSrc;
         BBRSink *bbrSink;
+        vector<NdpSrc *> ndp_srcs;
+        NdpSrc * ndpSrc;
+        NdpSink* ndpSink;
+        vector<NdpPullPacer *> pacers;
+        TcpSrc *tcpSrc;
         Route *routeout, *routein;
 
         vector<const Route *> ***net_paths;
@@ -962,6 +987,11 @@ int main(int argc, char **argv) {
 
         TcpRtxTimerScanner tcpRtxScanner(timeFromMs(10), eventlist);
         LcpEpochAgent *lcpEpochAgent;
+
+        if (use_ndp) {
+            for (int ix = 0; ix <= no_of_nodes * 2; ix++)
+                pacers.push_back(new NdpPullPacer(eventlist, linkspeed, 0.99));
+        }
 
         for (size_t c = 0; c < all_conns->size(); c++) {
             connection *crt = all_conns->at(c);
@@ -1103,6 +1133,130 @@ int main(int argc, char **argv) {
                             break;
                         }
                     }
+                } else if (use_dctcp) {
+                    // tcpSrc = new DCTCPSrc(NULL, NULL, eventlist);
+
+                    // tcp_srcs.push_back(tcpSrc);
+
+                    // // tcpSrc->set_dst(dest);
+                    // printf("Reaching here\n");
+                    // if (crt->flowid) {
+                    //     bbrSrc->set_flowid(crt->flowid);
+                    //     assert(flowmap.find(crt->flowid) == flowmap.end()); // don't have dups
+                    //     flowmap[crt->flowid] = bbrSrc;
+                    // }
+
+                    // if (crt->size > 0) {
+                    //     bbrSrc->setFlowSize(crt->size);
+                    // }
+
+                    // if (crt->trigger) {
+                    //     Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
+                    //     trig->add_target(*bbrSrc);
+                    // }
+                    // if (crt->send_done_trigger) {
+                    //     Trigger *trig = conns->getTrigger(crt->send_done_trigger, eventlist);
+                    //     bbrSrc->set_end_trigger(*trig);
+                    // }
+
+                    // bbrSink = new BBRSink();
+
+                    // bbrSrc->setName("bbr_" + ntoa(src) + "_" + ntoa(dest));
+
+                    // cout << "bbr_" + ntoa(src) + "_" + ntoa(dest) << endl;
+                    // logfile.writeName(*bbrSrc);
+
+                    // bbrSink->set_src(src);
+
+                    // bbrSink->setName("bbr_sink_" + ntoa(src) + "_" + ntoa(dest));
+                    // logfile.writeName(*bbrSink);
+                    // if (crt->recv_done_trigger) {
+                    //     Trigger *trig = conns->getTrigger(crt->recv_done_trigger, eventlist);
+                    //     bbrSink->set_end_trigger(*trig);
+                    // }
+
+                    // // lcpEpochAgent->doNextEvent();
+                    // // uecRtxScanner->registerUec(*lcpSrc);
+
+                    // switch (route_strategy) {
+                    //     case ECMP_FIB:
+                    //     case ECMP_FIB_ECN:
+                    //     case ECMP_RANDOM2_ECN:
+                    //     case SINGLE_PATH:
+                    //     case REACTIVE_ECN: {
+                    //         Route *srctotor = new Route();
+                    //         Route *dsttotor = new Route();
+
+                    //         if (top != NULL) {
+                    //             srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                    //             srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                    //             srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+
+                    //             dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                    //             dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                    //             dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+
+                    //         } else if (top_dc != NULL) {
+                    //             int idx_dc = top_dc->get_dc_id(src);
+                    //             int idx_dc_to = top_dc->get_dc_id(dest);
+                    //             bbrSrc->src_dc = top_dc->get_dc_id(src);
+                    //             bbrSrc->dest_dc = top_dc->get_dc_id(dest);
+                    //             bbrSrc->updateParams();
+
+                    //             printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+
+                    //             srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                    //                                                     [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                    //             srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                    //                                                     [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                    //             srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                    //                                                     [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
+                    //                                                             ->getRemoteEndpoint());
+
+                    //             dsttotor->push_back(
+                    //                     top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                    //                                         [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                    //             dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                    //                                                     [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                    //             dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                    //                                                     [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
+                    //                                                             ->getRemoteEndpoint());
+                    //         }
+
+                    //         bbrSrc->from = src;
+                    //         bbrSrc->to = dest;
+                    //         bbrSink->from = src;
+                    //         bbrSink->to = dest;
+                    //         printf("Creating2 Flow from %d to %d\n", bbrSrc->from, bbrSrc->to);
+                    //         bbrSrc->connect(srctotor, dsttotor, *bbrSink, crt->start);
+                    //         bbrSrc->set_paths(number_entropies);
+                    //         bbrSink->set_paths(number_entropies);
+
+                    //         // register src and snk to receive packets src their respective
+                    //         // TORs.
+                    //         if (top != NULL) {
+                    //             top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, bbrSrc->flow_id(), bbrSrc);
+                    //             top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, bbrSrc->flow_id(), bbrSink);
+                    //         } else if (top_dc != NULL) {
+                    //             int idx_dc = top_dc->get_dc_id(src);
+                    //             int idx_dc_to = top_dc->get_dc_id(dest);
+
+                    //             top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
+                    //                     src % top_dc->no_of_nodes(), bbrSrc->flow_id(), bbrSrc);
+                    //             top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
+                    //                     dest % top_dc->no_of_nodes(), bbrSrc->flow_id(), bbrSink);
+                    //         }
+                    //         break;
+                    //     }
+                    //     case NOT_SET: {
+                    //         abort();
+                    //         break;
+                    //     }
+                    //     default: {
+                    //         abort();
+                    //         break;
+                    //     }
+                    // }
                 } else if (use_uec) {
                     uecSrc = new UecSrc(NULL, NULL, eventlist, base_inter_rtt, bdp_inter, 100, 6);
 
@@ -1216,6 +1370,136 @@ int main(int argc, char **argv) {
                                         src % top_dc->no_of_nodes(), uecSrc->flow_id(), uecSrc);
                                 top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
                                         dest % top_dc->no_of_nodes(), uecSrc->flow_id(), uecSink);
+                            }
+                            break;
+                        }
+                        case NOT_SET: {
+                            abort();
+                            break;
+                        }
+                        default: {
+                            abort();
+                            break;
+                        }
+                    }
+                } else if (use_ndp) {
+                    cout << "Running NDP" << endl;
+                    ndpSrc = new NdpSrc(NULL, NULL, eventlist);
+                    if (actual_starting_cwnd == 1) {
+                        ndpSrc->setCwnd(bdp_inter);
+                    } else {
+                        ndpSrc->setCwnd(actual_starting_cwnd);
+                    }
+
+                    ndp_srcs.push_back(ndpSrc);
+
+                    ndpSrc->set_dst(dest);
+                    printf("Reaching here\n");
+                    if (crt->flowid) {
+                        ndpSrc->set_flowid(crt->flowid);
+                        assert(flowmap.find(crt->flowid) == flowmap.end()); // don't have dups
+                        flowmap[crt->flowid] = ndpSrc;
+                    }
+
+                    if (crt->size > 0) {
+                        ndpSrc->set_flowsize(crt->size);
+                    }
+
+                    if (crt->trigger) {
+                        Trigger *trig = conns->getTrigger(crt->trigger, eventlist);
+                        trig->add_target(*ndpSrc);
+                    }
+                    if (crt->send_done_trigger) {
+                        Trigger *trig = conns->getTrigger(crt->send_done_trigger, eventlist);
+                        ndpSrc->set_end_trigger(*trig);
+                    }
+
+                    ndpSink = new NdpSink(pacers[dest]);
+
+                    ndpSrc->setName("ndp_" + ntoa(src) + "_" + ntoa(dest));
+
+                    cout << "ndp_" + ntoa(src) + "_" + ntoa(dest) << endl;
+                    logfile.writeName(*ndpSrc);
+
+                    ndpSink->set_src(src);
+
+                    ndpSink->setName("ndp_sink_" + ntoa(src) + "_" + ntoa(dest));
+                    logfile.writeName(*ndpSink);
+                    if (crt->recv_done_trigger) {
+                        Trigger *trig = conns->getTrigger(crt->recv_done_trigger, eventlist);
+                        ndpSink->set_end_trigger(*trig);
+                    }
+
+                    // lcpEpochAgent->doNextEvent();
+                    // ndpRtxScanner->registerNdp(*lcpSrc);
+
+                    switch (route_strategy) {
+                        case ECMP_FIB:
+                        case ECMP_FIB_ECN:
+                        case ECMP_RANDOM2_ECN:
+                        case SINGLE_PATH:
+                        case REACTIVE_ECN: {
+                            Route *srctotor = new Route();
+                            Route *dsttotor = new Route();
+
+                            if (top != NULL) {
+                                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                                srctotor->push_back(top->pipes_ns_nlp[src][top->HOST_POD_SWITCH(src)]);
+                                srctotor->push_back(top->queues_ns_nlp[src][top->HOST_POD_SWITCH(src)]->getRemoteEndpoint());
+
+                                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                                dsttotor->push_back(top->pipes_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]);
+                                dsttotor->push_back(top->queues_ns_nlp[dest][top->HOST_POD_SWITCH(dest)]->getRemoteEndpoint());
+
+                            } else if (top_dc != NULL) {
+                                int idx_dc = top_dc->get_dc_id(src);
+                                int idx_dc_to = top_dc->get_dc_id(dest);
+                                ndpSrc->src_dc = top_dc->get_dc_id(src);
+                                ndpSrc->dest_dc = top_dc->get_dc_id(dest);
+                                ndpSrc->updateParams();
+
+                                printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+
+                                srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                        [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                                srctotor->push_back(top_dc->pipes_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                        [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);
+                                srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
+                                                                        [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]
+                                                                                ->getRemoteEndpoint());
+
+                                dsttotor->push_back(
+                                        top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                            [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                                dsttotor->push_back(top_dc->pipes_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                        [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]);
+                                dsttotor->push_back(top_dc->queues_ns_nlp[idx_dc_to][dest % top_dc->no_of_nodes()]
+                                                                        [top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())][0]
+                                                                                ->getRemoteEndpoint());
+                            }
+
+                            ndpSrc->from = src;
+                            ndpSrc->to = dest;
+                            ndpSink->from = src;
+                            ndpSink->to = dest;
+                            printf("Creating2 Flow from %d to %d\n", ndpSrc->from, ndpSrc->to);
+                            ndpSrc->connect(srctotor, dsttotor, *ndpSink, crt->start);
+                            ndpSrc->set_paths(number_entropies);
+                            ndpSink->set_paths(number_entropies);
+
+                            // register src and snk to receive packets src their respective
+                            // TORs.
+                            if (top != NULL) {
+                                top->switches_lp[top->HOST_POD_SWITCH(src)]->addHostPort(src, ndpSrc->flow_id(), ndpSrc);
+                                top->switches_lp[top->HOST_POD_SWITCH(dest)]->addHostPort(dest, ndpSrc->flow_id(), ndpSink);
+                            } else if (top_dc != NULL) {
+                                int idx_dc = top_dc->get_dc_id(src);
+                                int idx_dc_to = top_dc->get_dc_id(dest);
+
+                                top_dc->switches_lp[idx_dc][top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())]->addHostPort(
+                                        src % top_dc->no_of_nodes(), ndpSrc->flow_id(), ndpSrc);
+                                top_dc->switches_lp[idx_dc_to][top_dc->HOST_POD_SWITCH(dest % top_dc->no_of_nodes())]->addHostPort(
+                                        dest % top_dc->no_of_nodes(), ndpSrc->flow_id(), ndpSink);
                             }
                             break;
                         }
@@ -1507,6 +1791,9 @@ int main(int argc, char **argv) {
         }
         for (std::size_t i = 0; i < uec_srcs.size(); ++i) {
             delete uec_srcs[i];
+        }
+        for (std::size_t i = 0; i < ndp_srcs.size(); ++i) {
+            delete ndp_srcs[i];
         }
     } else if (goal_filename.size() > 0) {
         printf("Starting LGS Interface");
