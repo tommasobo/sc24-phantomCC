@@ -224,7 +224,7 @@ def main():
 
     avg_load_bps = bandwidth_bps * load / 100
     print(f"Average load (in bps): {avg_load_bps}")
-    avg_inter_arrival_time_ns = nhost * (avg_msg_size_bits / avg_load_bps) * NS_IN_S
+    avg_inter_arrival_time_ns = (avg_msg_size_bits / avg_load_bps) * NS_IN_S
 
     print(f"Average inter-arrival time (in ns): {avg_inter_arrival_time_ns}")
 

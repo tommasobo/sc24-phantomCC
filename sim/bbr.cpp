@@ -1077,6 +1077,14 @@ void BBRSrc::processAck(BBRAck &pkt, bool force_marked) {
 
         MyFileFCT.close();
 
+        // Flow Size.
+        auto flow_size_file_name = PROJECT_ROOT_PATH / ("sim/output/flow_size/flow_size" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileFlowSize(flow_size_file_name, std::ios_base::app);
+
+        MyFileFlowSize << _flow_size << std::endl;
+        
+        MyFileFlowSize.close();
+
         printf("Flow Completion time is %f - Flow Finishing Time %lu - Flow "
                "Start Time %lu - Size Finished Flow %lu\n",
                timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time), eventlist().now(), _flow_start_time,

@@ -1149,6 +1149,14 @@ void UecSrc::processAck(UecAck &pkt, bool force_marked) {
 
         MyFileFCT.close();
 
+        // Flow Size.
+        auto flow_size_file_name = PROJECT_ROOT_PATH / ("sim/output/flow_size/flow_size" + _name + "_" + std::to_string(tag) + ".txt");
+        std::ofstream MyFileFlowSize(flow_size_file_name, std::ios_base::app);
+
+        MyFileFlowSize << _flow_size << std::endl;
+        
+        MyFileFlowSize.close();
+
         cout << "Flow " <<  _name + "_" + std::to_string(tag) + ".txt" << " finished at " << timeAsMs(eventlist().now()) << endl;
         cout << "Flow " << _name + "_" + std::to_string(tag) + ".txt" << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
              << endl;
