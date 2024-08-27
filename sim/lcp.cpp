@@ -1764,9 +1764,10 @@ const string &LcpSrc::nodename() { return _nodename; }
 
 void LcpSrc::connect(Route *routeout, Route *routeback, LcpSink &sink, simtime_picosec starttime) {
     if (_route_strategy == SINGLE_PATH || _route_strategy == ECMP_FIB || _route_strategy == ECMP_FIB_ECN ||
-    _route_strategy == REACTIVE_ECN || _route_strategy == ECMP_RANDOM2_ECN || _route_strategy == ECMP_RANDOM_ECN) {
+    _route_strategy == REACTIVE_ECN || _route_strategy == ECMP_RANDOM2_ECN || _route_strategy == ECMP_RANDOM_ECN || _route_strategy == SCATTER_RANDOM) {
         assert(routeout);
         _route = routeout;
+        // cout << "Source connect: " << _route << endl;
     }
 
     _sink = &sink;
@@ -2029,6 +2030,14 @@ void LcpSrc::set_paths(vector<const Route *> *rt_list) {
         abort();
         break;
     }
+    }
+
+    // Check every path has been been intialized.
+    for (size_t i = 0; i < no_of_paths; i++) {
+        if (_paths[i] == NULL) {
+            cout << "Path " << i << " not initialized" << endl;
+            abort();
+        }
     }
 }
 
@@ -2301,6 +2310,7 @@ void LcpSink::send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, Uec
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
     case ECMP_RANDOM2_ECN:
+    case SCATTER_RANDOM:
     case ECMP_RANDOM_ECN:
         ack = UecAck::newpkt(_src->_flow, *_route, seqno, ackno, 0, _srcaddr);
 
@@ -2372,10 +2382,11 @@ void LcpSink::connect(LcpSrc &src, const Route *route) {
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
     case ECMP_RANDOM2_ECN:
+    case SCATTER_RANDOM:
     case ECMP_RANDOM_ECN:
         assert(route);
-        //("Setting route\n");
         _route = route;
+        // cout << "Setting route: " << route << endl;
         break;
     default:
         // do nothing we shouldn't be using this route - call

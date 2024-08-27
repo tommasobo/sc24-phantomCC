@@ -1897,7 +1897,7 @@ const string &MprdmaSrc::nodename() { return _nodename; }
 
 void MprdmaSrc::connect(Route *routeout, Route *routeback, MprdmaSink &sink, simtime_picosec starttime) {
     if (_route_strategy == SINGLE_PATH || _route_strategy == ECMP_FIB || _route_strategy == ECMP_FIB_ECN ||
-        _route_strategy == REACTIVE_ECN || _route_strategy == ECMP_RANDOM2_ECN || _route_strategy == ECMP_RANDOM_ECN) {
+        _route_strategy == REACTIVE_ECN || _route_strategy == ECMP_RANDOM2_ECN || _route_strategy == ECMP_RANDOM_ECN ||  _route_strategy == SCATTER_RANDOM) {
         assert(routeout);
         _route = routeout;
     }
@@ -2428,6 +2428,7 @@ void MprdmaSink::send_ack(simtime_picosec ts, bool marked, UecAck::seq_t seqno, 
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
+    case SCATTER_RANDOM:
     case ECMP_RANDOM2_ECN:
     case ECMP_RANDOM_ECN:
         ack = UecAck::newpkt(_src->_flow, *_route, seqno, ackno, 0, _srcaddr);
@@ -2500,6 +2501,7 @@ void MprdmaSink::connect(MprdmaSrc &src, const Route *route) {
     case ECMP_FIB_ECN:
     case REACTIVE_ECN:
     case ECMP_RANDOM2_ECN:
+    case SCATTER_RANDOM:
     case ECMP_RANDOM_ECN:
         assert(route);
         //("Setting route\n");
@@ -2519,12 +2521,12 @@ void MprdmaSink::connect(MprdmaSrc &src, const Route *route) {
 void MprdmaSink::set_paths(uint32_t no_of_paths) {
     switch (_route_strategy) {
     case SCATTER_PERMUTE:
-    case SCATTER_RANDOM:
     case PULL_BASED:
     case SCATTER_ECMP:
     case NOT_SET:
         abort();
     case SINGLE_PATH:
+    case SCATTER_RANDOM:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
     case ECMP_RANDOM2_ECN:

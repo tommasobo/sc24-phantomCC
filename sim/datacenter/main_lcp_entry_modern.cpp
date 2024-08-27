@@ -567,6 +567,7 @@ int main(int argc, char **argv) {
                 route_strategy = SCATTER_PERMUTE;
             } else if (!strcmp(argv[i + 1], "rand")) {
                 route_strategy = SCATTER_RANDOM;
+                FatTreeInterDCSwitch::set_strategy(FatTreeInterDCSwitch::ECMP);
             } else if (!strcmp(argv[i + 1], "pull")) {
                 route_strategy = PULL_BASED;
             } else if (!strcmp(argv[i + 1], "single")) {
@@ -1569,6 +1570,7 @@ int main(int argc, char **argv) {
                         case ECMP_FIB_ECN:
                         case ECMP_RANDOM2_ECN:
                         case SINGLE_PATH:
+                        case SCATTER_RANDOM:
                         case REACTIVE_ECN: {
                             Route *srctotor = new Route();
                             Route *dsttotor = new Route();
@@ -1700,6 +1702,7 @@ int main(int argc, char **argv) {
                     case ECMP_FIB_ECN:
                     case ECMP_RANDOM2_ECN:
                     case SINGLE_PATH:
+                    case SCATTER_RANDOM:
                     case REACTIVE_ECN: {
                         Route *srctotor = new Route();
                         Route *dsttotor = new Route();
