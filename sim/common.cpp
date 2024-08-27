@@ -9,6 +9,7 @@ simtime_picosec GLOBAL_TIME = 0; // Global variable for current sim time
 bool COLLECT_DATA = true;
 uint64_t HOPS = 6;                          // Max Hops Topology
 uint64_t INFINITE_BUFFER_SIZE = 1000000000; // Assume infinite buffer space
+std::string FOLDER_NAME = "results";
 
 // Values for "modern" networking simulations
 int PKT_SIZE_MODERN = 4096;       // Bytes

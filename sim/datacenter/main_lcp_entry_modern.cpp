@@ -693,6 +693,9 @@ int main(int argc, char **argv) {
                 exit_error(argv[0]);
             }
             i++;
+        } else if (!strcmp(argv[i], "-logging-folder")) {
+            FOLDER_NAME = argv[i + 1];
+            i++;
         } else {
             cout << "Unknown option " << argv[i] << endl;
             exit_error(argv[0]);

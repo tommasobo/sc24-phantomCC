@@ -57,6 +57,7 @@ extern double LCP_GAMMA;
 extern uint32_t LCP_DELTA;
 extern int LCP_K;
 extern uint32_t LCP_FAST_INCREASE_THRESHOLD;
+extern std::string FOLDER_NAME;
 extern bool LCP_USE_QUICK_ADAPT;
 extern bool LCP_USE_PACING;
 extern bool LCP_USE_FAST_INCREASE;

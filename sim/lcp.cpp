@@ -181,7 +181,7 @@ LcpSrc::~LcpSrc() {
     printf("Total NACKs: %lu\n", num_trim);
     if (COLLECT_DATA) {
         // RTT
-        std::string file_name = PROJECT_ROOT_PATH / ("sim/output/rtt/rtt" + _name + "_" + std::to_string(tag) + ".txt");
+        std::string file_name = PROJECT_ROOT_PATH / ("output/rtt/rtt" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFile(file_name, std::ios_base::app);
 
         for (const auto &p : _list_rtt) {
@@ -192,7 +192,7 @@ LcpSrc::~LcpSrc() {
         MyFile.close();
 
         // CWD
-        file_name = PROJECT_ROOT_PATH / ("sim/output/cwd/cwd" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/cwd/cwd" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileCWD(file_name, std::ios_base::app);
 
         for (const auto &p : _list_cwd) {
@@ -200,7 +200,7 @@ LcpSrc::~LcpSrc() {
         }
 
         // Driving loop.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/driving/driving" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/driving/driving" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileDriving(file_name, std::ios_base::app);
 
         for (const auto &p : _list_driving_loop) {
@@ -210,7 +210,7 @@ LcpSrc::~LcpSrc() {
         MyFileCWD.close();
 
         // CURRENT RTT EWMA.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/current_rtt_ewma/current_rtt_ewma" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/current_rtt_ewma/current_rtt_ewma" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileRTTEWMA(file_name, std::ios_base::app);
 
         for (const auto &p : _list_current_rtt_ewma) {
@@ -218,7 +218,7 @@ LcpSrc::~LcpSrc() {
         }
 
         // DUAL CONGESTED.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/dual_congested/dual_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/dual_congested/dual_congested" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileDualCongested(file_name, std::ios_base::app);
 
         for (const auto &p : _list_is_dual_congested) {
@@ -228,7 +228,7 @@ LcpSrc::~LcpSrc() {
         MyFileDualCongested.close();
 
         // ECN Congested.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_congested/ecn_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn_congested/ecn_congested" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileEcnCongested(file_name, std::ios_base::app);
 
         for (const auto &p : _list_is_ecn_congested) {
@@ -238,7 +238,7 @@ LcpSrc::~LcpSrc() {
         MyFileEcnCongested.close();
 
         // RTT congested.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/rtt_congested/rtt_congested" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/rtt_congested/rtt_congested" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileRttCongested(file_name, std::ios_base::app);
 
         for (const auto &p : _list_is_rtt_congested) {
@@ -248,7 +248,7 @@ LcpSrc::~LcpSrc() {
         MyFileRttCongested.close();
 
         // ECN fraction.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_fraction/ecn_fraction" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn_fraction/ecn_fraction" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileEcnFraction(file_name, std::ios_base::app);
 
         for (const auto &p : _list_ecn_fraction) {
@@ -260,7 +260,7 @@ LcpSrc::~LcpSrc() {
         MyFileRTTEWMA.close();
 
         // ECN ewma.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_ewma/ecn_ewma" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn_ewma/ecn_ewma" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileEcnEwma(file_name, std::ios_base::app);
 
         for (const auto &p : _list_ecn_ewma) {
@@ -270,7 +270,7 @@ LcpSrc::~LcpSrc() {
         MyFileEcnEwma.close();
 
         // TARGET RTT LOW.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_low/target_rtt_low" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/target_rtt_low/target_rtt_low" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileTargetRTTLow(file_name, std::ios_base::app);
 
         for (const auto &p : _list_target_rtt_low) {
@@ -280,7 +280,7 @@ LcpSrc::~LcpSrc() {
         MyFileTargetRTTLow.close();
 
         // TARGET RTT HIGH.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/target_rtt_high/target_rtt_high" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileTargetRTTHigh(file_name, std::ios_base::app);
 
         for (const auto &p : _list_target_rtt_high) {
@@ -290,7 +290,7 @@ LcpSrc::~LcpSrc() {
         MyFileTargetRTTHigh.close();
 
         // BAREMETAL RTT.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/baremetal_latency/baremetal_latency" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileBaremetalRTT(file_name, std::ios_base::app);
 
         for (const auto &p : _list_baremetal_latency) {
@@ -300,7 +300,7 @@ LcpSrc::~LcpSrc() {
         MyFileBaremetalRTT.close();
 
         // Unacked
-        file_name = PROJECT_ROOT_PATH / ("sim/output/unacked/unacked" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/unacked/unacked" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileUnack(file_name, std::ios_base::app);
 
         for (const auto &p : _list_unacked) {
@@ -310,7 +310,7 @@ LcpSrc::~LcpSrc() {
         MyFileUnack.close();
 
         // Sent
-        file_name = PROJECT_ROOT_PATH / ("sim/output/sent/sent" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/sent/sent" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileSent(file_name, std::ios_base::app);
 
         for (const auto &p : _list_sent) {
@@ -320,7 +320,7 @@ LcpSrc::~LcpSrc() {
         MyFileSent.close();
 
         // Retrans
-        file_name = PROJECT_ROOT_PATH / ("sim/output/retrans/retrans" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/retrans/retrans" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileRetrans(file_name, std::ios_base::app);
 
         for (const auto &p : _list_retrans) {
@@ -330,7 +330,7 @@ LcpSrc::~LcpSrc() {
         MyFileRetrans.close();
 
         // NACK
-        file_name = PROJECT_ROOT_PATH / ("sim/output/nack/nack" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/nack/nack" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileNack(file_name, std::ios_base::app);
 
         for (const auto &p : _list_nack) {
@@ -341,7 +341,7 @@ LcpSrc::~LcpSrc() {
 
         // BTS
         if (_list_bts.size() > 0) {
-            file_name = PROJECT_ROOT_PATH / ("sim/output/bts/bts" + _name + "_" + std::to_string(tag) + ".txt");
+            file_name = PROJECT_ROOT_PATH / ("output/bts/bts" + _name + "_" + std::to_string(tag) + ".txt");
             std::ofstream MyFileBTS(file_name, std::ios_base::app);
 
             for (const auto &p : _list_bts) {
@@ -352,7 +352,7 @@ LcpSrc::~LcpSrc() {
         }
 
         // Acked Bytes
-        file_name = PROJECT_ROOT_PATH / ("sim/output/acked/acked" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/acked/acked" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileAcked(file_name, std::ios_base::app);
 
         for (const auto &p : _list_acked_bytes) {
@@ -362,7 +362,7 @@ LcpSrc::~LcpSrc() {
         MyFileAcked.close();
 
         // Acked ECN
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_rtt/ecn_rtt" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn_rtt/ecn_rtt" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileEcnRTT(file_name, std::ios_base::app);
 
         for (const auto &p : _list_ecn_rtt) {
@@ -372,7 +372,7 @@ LcpSrc::~LcpSrc() {
         MyFileEcnRTT.close();
 
         // ECN Received
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn/ecn" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn/ecn" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileEcnReceived(file_name, std::ios_base::app);
 
         for (const auto &p : _list_ecn_received) {
@@ -383,7 +383,7 @@ LcpSrc::~LcpSrc() {
 
         // Acked Trimmed
         file_name =
-                PROJECT_ROOT_PATH / ("sim/output/trimmed_rtt/trimmed_rtt" + _name + "_" + std::to_string(tag) + ".txt");
+                PROJECT_ROOT_PATH / ("output/trimmed_rtt/trimmed_rtt" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileTrimmedRTT(file_name, std::ios_base::app);
 
         for (const auto &p : _list_trimmed_rtt) {
@@ -393,7 +393,7 @@ LcpSrc::~LcpSrc() {
         MyFileTrimmedRTT.close();
 
         // Fast Increase
-        file_name = PROJECT_ROOT_PATH / ("sim/output/fasti/fasti" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/fasti/fasti" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileFastInc(file_name, std::ios_base::app);
 
         for (const auto &p : _list_fast_increase_event) {
@@ -403,7 +403,7 @@ LcpSrc::~LcpSrc() {
         MyFileFastInc.close();
 
         // Fast Decrease
-        file_name = PROJECT_ROOT_PATH / ("sim/output/fastd/fastd" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/fastd/fastd" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileFastDec(file_name, std::ios_base::app);
 
         for (const auto &p : _list_fast_decrease) {
@@ -413,7 +413,7 @@ LcpSrc::~LcpSrc() {
         MyFileFastDec.close();
 
         // QA freed.
-        file_name = PROJECT_ROOT_PATH / ("sim/output/qa_free/qa_free" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/qa_free/qa_free" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileQAFree(file_name, std::ios_base::app);
 
         for (const auto &p : _list_qa_free) {
@@ -423,7 +423,7 @@ LcpSrc::~LcpSrc() {
         MyFileQAFree.close();
 
         // Medium Increase
-        file_name = PROJECT_ROOT_PATH / ("sim/output/mediumi/mediumi" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/mediumi/mediumi" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileMediumInc(file_name, std::ios_base::app);
 
         for (const auto &p : _list_medium_increase_event) {
@@ -433,7 +433,7 @@ LcpSrc::~LcpSrc() {
         MyFileMediumInc.close();
 
         // Case 1
-        file_name = PROJECT_ROOT_PATH / ("sim/output/case1/case1" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/case1/case1" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileCase1(file_name, std::ios_base::app);
 
         for (const auto &p : count_case_1) {
@@ -443,7 +443,7 @@ LcpSrc::~LcpSrc() {
         MyFileCase1.close();
 
         // Case 2
-        file_name = PROJECT_ROOT_PATH / ("sim/output/case2/case2" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/case2/case2" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileCase2(file_name, std::ios_base::app);
 
         for (const auto &p : count_case_2) {
@@ -453,7 +453,7 @@ LcpSrc::~LcpSrc() {
         MyFileCase2.close();
 
         // Case 3
-        file_name = PROJECT_ROOT_PATH / ("sim/output/case3/case3" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/case3/case3" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileCase3(file_name, std::ios_base::app);
 
         for (const auto &p : count_case_3) {
@@ -463,7 +463,7 @@ LcpSrc::~LcpSrc() {
         MyFileCase3.close();
 
         // Case 4
-        file_name = PROJECT_ROOT_PATH / ("sim/output/case4/case4" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/case4/case4" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileCase4(file_name, std::ios_base::app);
 
         for (const auto &p : count_case_4) {
@@ -474,7 +474,7 @@ LcpSrc::~LcpSrc() {
 
         // Sending Rate
         file_name = PROJECT_ROOT_PATH /
-                    ("sim/output/sending_rate/sending_rate" + _name + "_" + std::to_string(tag) + ".txt");
+                    ("output/sending_rate/sending_rate" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileSendingRate(file_name, std::ios_base::app);
 
         for (const auto &p : list_sending_rate) {
@@ -484,7 +484,7 @@ LcpSrc::~LcpSrc() {
         MyFileSendingRate.close();
 
         // ECN RATE
-        file_name = PROJECT_ROOT_PATH / ("sim/output/ecn_rate/ecn_rate" + _name + "_" + std::to_string(tag) + ".txt");
+        file_name = PROJECT_ROOT_PATH / ("output/ecn_rate/ecn_rate" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileECNRate(file_name, std::ios_base::app);
 
         for (const auto &p : list_ecn_rate) {
@@ -643,7 +643,7 @@ void LcpSrc::updateParams(uint64_t base_rtt_intra, uint64_t base_rtt_inter, uint
     cout << "==============================" << endl;
 
     // Write all of this to a file in csv.
-    std::string file_name = PROJECT_ROOT_PATH / ("sim/output/params/params" + _name + "_" + std::to_string(tag) + ".txt");
+    std::string file_name = PROJECT_ROOT_PATH / ("output/params/params" + _name + "_" + std::to_string(tag) + ".txt");
     std::ofstream MyFile(file_name, std::ios_base::app);
 
     MyFile << "Link speed (Gbps)," << INTER_LINK_SPEED_MODERN << std::endl;
@@ -1179,7 +1179,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
     bool marked = pkt.flags() & ECN_ECHO; // ECN was marked on data packet and echoed on ACK
 
     if (COLLECT_DATA && marked) {
-        std::string file_name = PROJECT_ROOT_PATH / ("sim/output/ecn/ecn" + std::to_string(pkt.from) + "_" +
+        std::string file_name = PROJECT_ROOT_PATH / ("output/ecn/ecn" + std::to_string(pkt.from) + "_" +
                                                      std::to_string(pkt.to) + ".txt");
         std::ofstream MyFile(file_name, std::ios_base::app);
 
@@ -1242,7 +1242,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
              << endl;
 
         // FCT.
-        auto fct_file_name = PROJECT_ROOT_PATH / ("sim/output/fct/fct" + _name + "_" + std::to_string(tag) + ".txt");
+        auto fct_file_name = PROJECT_ROOT_PATH / ("output/fct/fct" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileFCT(fct_file_name, std::ios_base::app);
 
         MyFileFCT << timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time) << std::endl;
@@ -1250,7 +1250,7 @@ void LcpSrc::processAck(UecAck &pkt, bool force_marked) {
         MyFileFCT.close();
 
         // Flow Size.
-        auto flow_size_file_name = PROJECT_ROOT_PATH / ("sim/output/flow_size/flow_size" + _name + "_" + std::to_string(tag) + ".txt");
+        auto flow_size_file_name = PROJECT_ROOT_PATH / ("output/flow_size/flow_size" + _name + "_" + std::to_string(tag) + ".txt");
         std::ofstream MyFileFlowSize(flow_size_file_name, std::ios_base::app);
 
         MyFileFlowSize << _flow_size << std::endl;
@@ -1591,7 +1591,7 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         if (COLLECT_DATA) {
             std::string file_name =
                     PROJECT_ROOT_PATH /
-                    ("sim/output/current_rtt_ewma/current_rtt_ewma_" + _name + "_" +
+                    ("output/current_rtt_ewma/current_rtt_ewma_" + _name + "_" +
                                         std::to_string(tag) + ".txt");
             if (_current_rtt_measurement != timeFromMs(0)) {
                 std::ofstream MyFile(file_name, std::ios_base::app);
@@ -1599,13 +1599,13 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
                 MyFile.close();
             }
 
-            file_name = PROJECT_ROOT_PATH / ("sim/output/target_rtt_high/target_rtt_high_" + _name + "_" +
+            file_name = PROJECT_ROOT_PATH / ("output/target_rtt_high/target_rtt_high_" + _name + "_" +
                                         std::to_string(tag) + ".txt");
             std::ofstream MyFile3(file_name, std::ios_base::app);
             MyFile3 << eventlist().now() / 1000 << "," << (BAREMETAL_RTT + LCP_GEMINI_TARGET_QUEUEING_LATENCY) / 1000 << std::endl;
             MyFile3.close();
 
-            file_name = PROJECT_ROOT_PATH / ("sim/output/baremetal_latency/baremetal_latency_" + _name + "_" +
+            file_name = PROJECT_ROOT_PATH / ("output/baremetal_latency/baremetal_latency_" + _name + "_" +
                                         std::to_string(tag) + ".txt");
             std::ofstream MyFile4(file_name, std::ios_base::app);
             MyFile4 << eventlist().now() / 1000 << "," << BAREMETAL_RTT / 1000 << std::endl;
@@ -2391,11 +2391,11 @@ void LcpSink::connect(LcpSrc &src, const Route *route) {
 void LcpSink::set_paths(uint32_t no_of_paths) {
     switch (_route_strategy) {
     case SCATTER_PERMUTE:
-    case SCATTER_RANDOM:
     case PULL_BASED:
     case SCATTER_ECMP:
     case NOT_SET:
         abort();
+    case SCATTER_RANDOM:
     case SINGLE_PATH:
     case ECMP_FIB:
     case ECMP_FIB_ECN:
