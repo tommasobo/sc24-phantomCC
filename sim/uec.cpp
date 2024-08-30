@@ -140,11 +140,11 @@ UecSrc::UecSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
         generic_pacer = new SmarttPacer(eventlist(), *this);
         pacer_start_time = eventlist().now();
         pacing_delay = ((4160 * 8) / ((_cwnd * 8) / (_base_rtt / 1000)));
-        printf("Setting the pacing delay1 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
-               GLOBAL_TIME / 1000);
+        // printf("Setting the pacing delay1 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
+            //    GLOBAL_TIME / 1000);
         // pacing_delay -= (4160 * 8 / LINK_SPEED_MODERN);
-        printf("Setting the pacing delay2 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
-               GLOBAL_TIME / 1000);
+        // printf("Setting the pacing delay2 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
+            //    GLOBAL_TIME / 1000);
         pacing_delay *= 1000; // ps
     }
 
@@ -158,7 +158,7 @@ UecSrc::UecSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
 // Add deconstructor and save data once we are done.
 UecSrc::~UecSrc() {
     // If we are collecting specific logs
-    printf("Total NACKs: %lu\n", num_trim);
+    // printf("Total NACKs: %lu\n", num_trim);
     if (COLLECT_DATA) {
         // RTT
         std::string file_name = PROJECT_ROOT_PATH / ("output/rtt/rtt" + _name + "_" + std::to_string(tag) + ".txt");
@@ -425,15 +425,15 @@ void UecSrc::updateParams() {
 
     near_base_rtt = _base_rtt * 1.05;
 
-    printf("UPDATING VALUES - Link Delay %d (InterDC %lu) - Link Speed %lu - "
-           "Pkt Size %d - "
-           "Base RTT %lu - "
-           "Target RTT is %lu - Drain Queue %lu - BDP %lu - CWND %u - Queue "
-           "Size %lu - Hops %d - Stop Pacing "
-           "%lu\n",
-           LINK_DELAY_MODERN, _interdc_delay / 1000, LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt,
-           time_to_drain_queue, _bdp, _cwnd, _switch_queue_size, _hop_count, stop_pacing_after_rtt);
-    fflush(stdout);
+    // printf("UPDATING VALUES - Link Delay %d (InterDC %lu) - Link Speed %lu - "
+    //        "Pkt Size %d - "
+    //        "Base RTT %lu - "
+    //        "Target RTT is %lu - Drain Queue %lu - BDP %lu - CWND %u - Queue "
+    //        "Size %lu - Hops %d - Stop Pacing "
+    //        "%lu\n",
+    //        LINK_DELAY_MODERN, _interdc_delay / 1000, LINK_SPEED_MODERN, PKT_SIZE_MODERN, _base_rtt, _target_rtt,
+    //        time_to_drain_queue, _bdp, _cwnd, _switch_queue_size, _hop_count, stop_pacing_after_rtt);
+    // fflush(stdout);
     _max_good_entropies = 10; // TODO: experimental value
     _enableDistanceBasedRtx = false;
     last_pac_change = 0;
@@ -442,11 +442,11 @@ void UecSrc::updateParams() {
         generic_pacer = new SmarttPacer(eventlist(), *this);
         pacer_start_time = eventlist().now();
         pacing_delay = ((4160 * 8) / ((_cwnd * 8) / (_base_rtt / 1000)));
-        printf("Setting the pacing delay1 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
-               GLOBAL_TIME / 1000);
+        // printf("Setting the pacing delay1 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
+            //    GLOBAL_TIME / 1000);
         // pacing_delay -= (4160 * 8 / LINK_SPEED_MODERN);
-        printf("Setting the pacing delay2 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
-               GLOBAL_TIME / 1000);
+        // printf("Setting the pacing delay2 %d %lu to %lu at %lu\n", _cwnd, (_base_rtt / 1000), pacing_delay,
+            //    GLOBAL_TIME / 1000);
         pacing_delay *= 1000; // ps
     }
 }
@@ -596,8 +596,8 @@ void UecSrc::quick_adapt(bool trimmed) {
     }
 
     if (eventlist().now() >= next_window_end) {
-        printf("Just updated %d at %lu vs %lu - %lu %lu\n", from, eventlist().now() / 1000, previous_window_end / 1000,
-               acked_bytes, acked_bytes);
+        // printf("Just updated %d at %lu vs %lu - %lu %lu\n", from, eventlist().now() / 1000, previous_window_end / 1000,
+            //    acked_bytes, acked_bytes);
         previous_window_end = next_window_end;
         saved_acked_bytes = acked_bytes;
 
@@ -1157,18 +1157,18 @@ void UecSrc::processAck(UecAck &pkt, bool force_marked) {
         
         MyFileFlowSize.close();
 
-        cout << "Flow " <<  _name + "_" + std::to_string(tag) + ".txt" << " finished at " << timeAsMs(eventlist().now()) << endl;
-        cout << "Flow " << _name + "_" + std::to_string(tag) + ".txt" << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
-             << endl;
+        // cout << "Flow " <<  _name + "_" + std::to_string(tag) + ".txt" << " finished at " << timeAsMs(eventlist().now()) << endl;
+        // cout << "Flow " << _name + "_" + std::to_string(tag) + ".txt" << " completion time is " << timeAsMs(eventlist().now() - _flow_start_time)
+        //      << endl;
 
-        printf("Flow Completion time is %f - Flow Finishing Time %lu - Flow "
-               "Start Time %lu - Size Finished Flow %lu - From %d - To %d\n",
-               timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time), eventlist().now(), _flow_start_time,
-               _flow_size, from, to);
+        // printf("Flow Completion time is %f - Flow Finishing Time %lu - Flow "
+        //        "Start Time %lu - Size Finished Flow %lu - From %d - To %d\n",
+        //        timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time), eventlist().now(), _flow_start_time,
+        //        _flow_size, from, to);
 
-        printf("Flow %d - Total Time %f\n", from, timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time));
+        // printf("Flow %d - Total Time %f\n", from, timeAsUs(eventlist().now()) - timeAsUs(_flow_start_time));
 
-        printf("Overall Completion at %lu\n", GLOBAL_TIME);
+        // printf("Overall Completion at %lu\n", GLOBAL_TIME);
         if (_end_trigger) {
             _end_trigger->activate();
         }

@@ -706,7 +706,7 @@ int main(int argc, char **argv) {
                     uecSrc->dest_dc = top_dc->get_dc_id(dest);
                     uecSrc->updateParams();
 
-                    printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
+                    // printf("Source in Datacenter %d - Dest in Datacenter %d\n", idx_dc, idx_dc_to);
 
                     srctotor->push_back(top_dc->queues_ns_nlp[idx_dc][src % top_dc->no_of_nodes()]
                                                              [top_dc->HOST_POD_SWITCH(src % top_dc->no_of_nodes())][0]);

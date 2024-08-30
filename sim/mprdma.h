@@ -415,6 +415,7 @@ class MprdmaSrc : public PacketSink, public EventSource, public TriggerTarget {
     unsigned _nack_rtx_pending;
     vector<tuple<simtime_picosec, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t>> _list_rtt;
     vector<pair<simtime_picosec, uint64_t>> _list_cwd;
+    vector<pair<simtime_picosec, uint64_t>> _list_sent;
     vector<pair<simtime_picosec, uint64_t>> _list_unacked;
     vector<pair<simtime_picosec, uint64_t>> _list_acked_bytes;
     vector<pair<simtime_picosec, uint64_t>> _list_ecn_rtt;

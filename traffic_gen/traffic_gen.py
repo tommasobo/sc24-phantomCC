@@ -58,14 +58,14 @@ def add_commandline_options():
         type=int,
         help="(Required) The number of hosts, must be larger than 1.",
     )
-    # # Optional options.
-    # arg_parser.add_argument(
-    #     "-c",
-    #     "--cdf_file_path",
-    #     required=True,
-    #     type=str,
-    #     help="(Required) The path of the file with the traffic size cdf.",
-    # )
+    # Optional options.
+    arg_parser.add_argument(
+        "-c",
+        "--cdf_file_path",
+        required=True,
+        type=str,
+        help="(Required) The path of the file with the traffic size cdf.",
+    )
     arg_parser.add_argument(
         "-l",
         "--load",
@@ -127,16 +127,6 @@ def add_commandline_options():
         help=(
             "The seed for the random number generators, by default None which"
             " means using the system time."
-        ),
-    )
-    arg_parser.add_argument(
-        "-p",
-        "--flow_size",
-        default=MESSAGE_SIZE_BYTES,
-        type=int,
-        help=(
-            "The size of the flow in bytes, by default"
-            f" {MESSAGE_SIZE_BYTES}."
         ),
     )
     arg_parser.add_argument(
@@ -203,9 +193,9 @@ def main():
     sim_duration_ns = args.sim_duration_s * NS_IN_S
     total_flows = args.total_flows
     output_file_path = args.output_file_path
-    # cdf_file_path = args.cdf_file_path
+    cdf_file_path = args.cdf_file_path
     seed = args.seed
-    MESSAGE_SIZE_BYTES = args.flow_size
+    # MESSAGE_SIZE_BYTES = args.flow_size
 
     # Argument validation.
     if not args.nhost or args.nhost < 2:
@@ -218,24 +208,23 @@ def main():
     except (ValueError, TypeError) as e:
         sys.exit(f"Bandwidth format incorrect: {e}")
 
-    # # Create a custom random generator and set the seed.
-    # custom_rand = CustomRandomNumberGenerator()
-    # random.seed(seed)
+    # Create a custom random generator and set the seed.
+    custom_rand = CustomRandomNumberGenerator()
+    random.seed(seed)
 
-    # # Read the CDF file.
-    # if not custom_rand.set_cdf_from_file(cdf_file_path):
-    #     sys.exit("Error: Not a valid CDF.")
+    # Read the CDF file.
+    if not custom_rand.set_cdf_from_file(cdf_file_path):
+        sys.exit("Error: Not a valid CDF.")
 
     # Calculate the average inter-arrival time (in ns).
-    # avg_msg_size_bits = custom_rand.calculate_average_value() * BYTE_TO_BIT
-    avg_msg_size_bits = MESSAGE_SIZE_BYTES * 8
+    avg_msg_size_bits = custom_rand.calculate_average_value() * BYTE_TO_BIT
+
     print(f"Average message size (in bits): {avg_msg_size_bits}")
     print(f"Bandwidth (in bps): {bandwidth_bps}")
-    # print(f"Load: {load}")
 
     avg_load_bps = bandwidth_bps * load / 100
     print(f"Average load (in bps): {avg_load_bps}")
-    avg_inter_arrival_time_ns = nhost * (avg_msg_size_bits / avg_load_bps) * NS_IN_S
+    avg_inter_arrival_time_ns = (avg_msg_size_bits / avg_load_bps) * NS_IN_S
 
     print(f"Average inter-arrival time (in ns): {avg_inter_arrival_time_ns}")
 
@@ -258,8 +247,11 @@ def main():
             else:
                 num_inter += 1
                 # print("Inter dst: ", dst_idx_)
-            #flow_size_bytes = max(int(custom_rand.generate_random_number()), 1)
-            flow_size_bytes = MESSAGE_SIZE_BYTES
+            
+            flow_size_bytes = max(int(custom_rand.generate_random_number()), 1)
+            
+            # flow_size_bytes = MESSAGE_SIZE_BYTES
+
             flow_list.append(
                 Flow(
                     src_idc,

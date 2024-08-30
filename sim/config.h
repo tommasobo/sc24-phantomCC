@@ -26,6 +26,7 @@ typedef long long sint64_t;
 typedef uint64_t simtime_picosec;
 
 extern simtime_picosec GLOBAL_TIME;
+extern std::string FOLDER_NAME;
 extern int PKT_SIZE_MODERN;
 extern uint64_t LINK_SPEED_MODERN;
 extern uint64_t INTER_LINK_SPEED_MODERN;
@@ -53,37 +54,21 @@ extern simtime_picosec TARGET_RTT_HIGH;
 extern simtime_picosec BAREMETAL_RTT;
 extern double LCP_ALPHA;
 extern double LCP_BETA;
-extern double LCP_GAMMA;
 extern uint32_t LCP_DELTA;
 extern int LCP_K;
 extern uint32_t LCP_FAST_INCREASE_THRESHOLD;
-extern std::string FOLDER_NAME;
 extern bool LCP_USE_QUICK_ADAPT;
 extern bool LCP_USE_PACING;
 extern bool LCP_USE_FAST_INCREASE;
 extern double LCP_PACING_BONUS;
-extern bool LCP_USE_MIN_RTT;
-extern bool LCP_USE_AGGRESSIVE_DECREASE;
 extern float LCP_ECN_ALPHA;
 extern float LCP_ECN_FRACTION_THRESHOLD_LOW;
 extern float LCP_ECN_FRACTION_THRESHOLD_HIGH;
 extern bool LCP_OFF_RTT;
-extern bool LCP_USE_ECN;
 extern bool LCP_USE_REGULAR_EWMA;
 extern float LCP_TARGET_RTT_HIGH_FRACTION;
-extern bool LCP_CONSTANT_DECREASE;
 extern bool LCP_DO_PER_ACK_INCREASE;
 extern uint32_t LCP_CONSECUTIVE_DECREASES_FOR_QA;
-// LCP-Gemini
-extern simtime_picosec LCP_GEMINI_TARGET_QUEUEING_LATENCY;
-extern double LCP_GEMINI_H;
-extern double LCP_GEMINI_BETA;
-// LCP-Per-ACK
-extern double LCP_FS_MIN_CWND;
-extern double LCP_FS_MAX_CWND;
-extern simtime_picosec LCP_FS_RANGE_RTT;
-extern double LCP_FS_RANGE_ECN;
-//
 extern uint64_t MAX_CWD_OLD_NDP;
 extern uint64_t ENABLE_FAST_DROP;
 extern std::filesystem::path PROJECT_ROOT_PATH;

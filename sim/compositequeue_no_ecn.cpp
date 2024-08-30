@@ -260,7 +260,7 @@ void CompositeQueueNoEcn::receivePacket(Packet &pkt) {
         if (COLLECT_DATA) {
             if (_queuesize_low != 0) {
                 std::string file_name = PROJECT_ROOT_PATH /
-                                        ("sim/output/queue/queue" + _nodename.substr(_nodename.find(")") + 1) + ".txt");
+                                        ("output/queue/queue" + _nodename.substr(_nodename.find(")") + 1) + ".txt");
                 std::ofstream MyFile(file_name, std::ios_base::app);
                 /*printf("Bit rate is %lu\n", _bitrate);
                 fflush(stdout);*/
@@ -275,7 +275,7 @@ void CompositeQueueNoEcn::receivePacket(Packet &pkt) {
 
         if (COLLECT_DATA && _use_phantom) {
             if (_current_queuesize_phatom != 0) {
-                std::string file_name = PROJECT_ROOT_PATH / ("sim/output/queue_phantom/queue_phantom" +
+                std::string file_name = PROJECT_ROOT_PATH / ("output/queue_phantom/queue_phantom" +
                                                              _nodename.substr(_nodename.find(")") + 1) + ".txt");
                 std::ofstream MyFile(file_name, std::ios_base::app);
 

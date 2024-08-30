@@ -40,8 +40,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
   public:
     LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList, uint64_t rtt, uint64_t bdp,
            uint64_t queueDrainTime, int hops);
-    // LcpSrc(UecLogger *logger, TrafficLogger* pktLogger, EventList& eventList,
-    // uint64_t rtt=timeFromUs(5.25), uint64_t bdp=63000);
     ~LcpSrc();
 
     virtual void doNextEvent() override;
@@ -67,18 +65,12 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
 
     void setCwnd(uint64_t cwnd) { _cwnd = cwnd; };
     void setReuse(bool reuse) { _use_good_entropies = reuse; };
-    void setIgnoreEcnAck(bool ignore_ecn_ack) { _ignore_ecn_ack = ignore_ecn_ack; };
-    void setIgnoreEcnData(bool ignore_ecn_data) { _ignore_ecn_data = ignore_ecn_data; };
     void setNumberEntropies(int num_entropies) { _num_entropies = num_entropies; };
     void setHopCount(int hops) {
         _hop_count = hops;
         printf("Hop Count is %d\n", hops);
     };
     void setFlowSize(uint64_t flow_size) { _flow_size = flow_size; }
-    void setKeepAcksInTargetRtt(bool keep) { _target_based_received = keep; }
-    // void setLgs(LogSimInterface *lgs) { _lgs = lgs; };
-    // void setUsingLgs(bool val) { _using_lgs = val; };
-    void enableTrimming(bool enable) { _trimming_enabled = enable; };
 
     uint64_t getCwnd() { return _cwnd; };
     uint64_t getHighestSent() { return _highest_sent; }
@@ -87,11 +79,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t getLastAcked() { return _last_acked; }
     uint32_t getReceivedSize() { return _received_ecn.size(); }
     uint32_t getRto() { return _rto; }
-    bool supportsTrimming() { return _trimming_enabled; }
-    std::size_t getEcnInTargetRtt();
 
     int choose_route();
-    inline simtime_picosec pacing_delay_f() const { return pacing_delay; }
     int next_route();
 
     void set_traffic_logger(TrafficLogger *pktlogger);
@@ -99,61 +88,16 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     static void set_kmin(double value) { kmin_double = value; }
     static void set_queue_type(std::string value) { queue_type = value; }
     static void set_alogirthm(std::string value) { algorithm_type = value; }
-    static void set_fast_drop(bool value) { use_fast_drop = value; }
-    static void set_fast_drop_rtt(int value) { fast_drop_rtt = value; }
     static void set_use_pacing(int value) { use_pacing = value; }
     static void set_pacing_delay(simtime_picosec value) { pacing_delay = value * 1000; }
 
-    static void set_exp_avg_ecn(bool value) { use_exp_avg_ecn = value; }
-    static void set_exp_avg_rtt(bool value) { use_exp_avg_rtt = value; }
-
-    static void set_exp_avg_ecn_value(double value) { exp_avg_ecn_value = value; }
-    static void set_decrease_on_nack(double value) { decrease_on_nack = value; }
-    static void set_exp_avg_rtt_value(double value) { exp_avg_rtt_value = value; }
-    static void set_exp_avg_alpha(double value) { exp_avg_alpha = value; }
-
-    static void set_explicit_rtt(uint64_t value) { explicit_base_rtt = value; }
-    static void set_explicit_bdp(int value) { explicit_bdp = value; }
-    static void set_switch_queue_size(uint64_t value) { _switch_queue_size = value; }
-    static void set_explicit_target_rtt(uint64_t value) { explicit_target_rtt = value; }
-
-    static void set_do_jitter(bool value) { do_jitter = value; }
-    static void set_do_exponential_gain(bool value) { do_exponential_gain = value; }
-    static void set_use_fast_increase(bool value) { use_fast_increase = value; }
-    static void set_use_super_fast_increase(bool value) { use_super_fast_increase = value; }
-    /*static void set_gain_value_med_inc(double value) {
-        exp_gain_value_med_inc = value;
-    }
-    static void set_jitter_value_med_inc(double value) {
-        jitter_value_med_inc = value;
-    }
-    static void set_delay_gain_value_med_inc(double value) {
-        delay_gain_value_med_inc = value;
-    }*/
-    static void set_target_rtt_percentage_over_base(int value) { target_rtt_percentage_over_base = value; }
-
-    static void set_y_gain(double value) { y_gain = value; }
-    static void set_x_gain(double value) { x_gain = value; }
-    static void set_z_gain(double value) { z_gain = value; }
-    static void set_w_gain(double value) { w_gain = value; }
     void resetQACounting();
-    static void set_os_ratio_stage_1(double value) { ratio_os_stage_1 = value; }
-    static void set_once_per_rtt(int value) { once_per_rtt = value; }
-    static void set_quickadapt_lossless_rtt(double value) { quickadapt_lossless_rtt = value; }
-    static void set_disable_case_3(double value) { disable_case_3 = value; }
+    // static void set_os_ratio_stage_1(double value) { ratio_os_stage_1 = value; }
     static void set_frequency(int value) { freq = value; }
-    static void set_reaction_delay(int value) {
-        reaction_delay = value;
-        adjust_packet_counts = value;
-    }
     static void set_precision_ts(int value) { precision_ts = value; }
-    static void set_disable_case_4(double value) { disable_case_4 = value; }
     static void set_starting_cwnd(double value) { starting_cwnd = value; }
     static void set_bonus_drop(double value) { bonus_drop = value; }
     static void set_bts(bool use_b) { use_bts = use_b; }
-    static void set_buffer_drop(double value) { buffer_drop = value; }
-    static void set_stop_after_quick(bool value) { stop_after_quick = value; }
-    static void set_stop_pacing(int value) { stop_pacing_after_rtt = value; }
     static void setRouteStrategy(RouteStrategy strat) { _route_strategy = strat; }
 
     void set_flow_over_hook(std::function<void(const Packet &)> hook) { f_flow_over_hook = hook; }
@@ -179,23 +123,15 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t _rtx_packets_sent;
     uint64_t _acks_received;
     uint64_t _nacks_received;
-    static simtime_picosec _interdc_delay;
-    uint64_t _pulls_received;
-    uint64_t _implicit_pulls;
-    uint64_t _bounces_received;
+    static simtime_picosec _interdc_delay; // The one way delay between datacenters.
     float _cwnd;
     uint32_t acked_bytes = 0;
     uint32_t good_bytes = 0;
-    uint32_t saved_acked_bytes = 0;
-    simtime_picosec qa_period_time = 0;
-    uint32_t saved_good_bytes = 0;
+    uint32_t saved_acked_bytes = 0; // Stores received bytes for QA.
+    simtime_picosec qa_period_time = 0; // Keeps track of the measurement period for received bytes.
     uint32_t saved_trimmed_bytes = 0;
-    static int freq;
-    uint32_t last_decrease = 0;
-    uint32_t drop_amount = 0;
+    static int freq; // Modifies the frequencey with which we count QA.
     uint32_t count_total_ecn = 0;
-    bool tried_qa = false;
-    bool stop_decrease = false;
     uint32_t count_total_ack = 0;
     uint64_t _last_acked;
     uint32_t _flight_size;
@@ -219,25 +155,12 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int tot_pkt_seen_qa = 0;
 
     int total_routes;
-    // simtime_picosec internal_stop_pacing_rtt;
     int routes_changed = 0;
-    int exp_avg_bts = 0;
-    int exp_avg_route = 0;
-    double alpha_route = 0.0625;
     int current_pkt = 0;
     bool pause_send = false;
     int total_pkt = 0;
     int total_nack = 0;
     uint64_t send_size = 0;
-    bool did_qa = false;
-    bool changed_once = false;
-
-    // Gemini stuff
-    bool congested_dcn = false;
-    bool congested_wan = false;
-    simtime_picosec last_gemini_decrease = 0;
-    double F_gemini, k_gemini, c_gemini, f_dcn_gemini, f_wan_gemini, alpha_gemini, beta_gemini = 0;
-    double h_gemini, H_gemini = 0;
 
     // Custom Parameters
     static int adjust_packet_counts;
@@ -245,18 +168,11 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     static std::string algorithm_type;
     static int precision_ts;
     static bool use_fast_drop;
-    static int fast_drop_rtt;
     bool was_zero_before = false;
     double ideal_x = 0;
     static bool do_jitter;
     static int jump_to;
     int qa_count = 0;
-    static bool do_exponential_gain;
-    static bool use_fast_increase;
-    static bool use_super_fast_increase;
-    static int target_rtt_percentage_over_base;
-    static int ratio_os_stage_1;
-    static int once_per_rtt;
     static double kmax_double;
     static double gemini_f;
     static bool use_bts;
@@ -270,65 +186,28 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     int dest_dc = 0;
     int num_trim = 0;
 
-    static uint64_t explicit_target_rtt;
-    static uint64_t explicit_base_rtt;
-    static uint64_t explicit_bdp;
     static uint64_t _switch_queue_size;
     simtime_picosec last_adjust_ts;
-    int current_packet_adjust = 0;
-    uint64_t adjust_value = 0;
-    uint64_t fd_bytes = 0;
-    uint64_t accumulated_delay = 0;
-    int packets_seen_md = 0;
-    simtime_picosec last_decrease_ts = 0;
-    uint64_t asdas = 0;
     vector<int> _good_entropies_list;
     int curr_entropy = 0;
 
-    int adjust_current_packet = 0;
-
-    static double exp_avg_ecn_value;
-    static double exp_avg_rtt_value;
-    static bool use_exp_avg_ecn;
-    static bool use_exp_avg_rtt;
-    static double exp_avg_alpha;
-
-    static double y_gain;
-    static double x_gain;
-    double initial_x_gain = 0;
-    double initial_z_gain = 0;
-    double scaling_factor = 1;
-    double x_gain_up = 1;
-    simtime_picosec ignore_for_time = 0;
-    static double z_gain;
-    static double w_gain;
-    static bool disable_case_3;
-    static bool disable_case_4;
-    static double quickadapt_lossless_rtt;
-    static int reaction_delay;
-    static double decrease_on_nack;
-
     static double starting_cwnd;
     static double bonus_drop;
-    static double buffer_drop;
-    static bool stop_after_quick;
-    static simtime_picosec stop_pacing_after_rtt;
     static RouteStrategy _route_strategy;
     static bool use_pacing;
     static simtime_picosec pacing_delay;
     bool first_quick_adapt = false;
 
     // LCP.
-    simtime_picosec _previous_rtt_ewma;
-    simtime_picosec _current_rtt_ewma;
-    uint64_t _next_measurement_seq_no;
-    // int64_t _bytes_until_next_epoch;
-    uint32_t _consecutive_good_epochs;
-    simtime_picosec _time_of_next_epoch;
-    uint64_t _next_qa_sn;
-    // uint64_t _bytes_receieved_since_last_epoch;
-    simtime_picosec _time_of_last_qa;
-    bool _first_qa_measurement;
+    simtime_picosec _current_rtt_ewma;    
+    float _ecn_fraction_ewma;
+    float _ecn_count_this_window;
+    float _good_count_this_window;
+    uint64_t _next_measurement_seq_no; // Next sequence number to declare end of epoch.
+    uint32_t _consecutive_good_epochs; // Counts number of epochs without congestion.
+    uint64_t _next_qa_sn; // Next sequence number that must be received before window changes are allowed.
+    simtime_picosec _time_of_last_qa; // Time since last QA received_bytes measurement.
+    bool _first_qa_measurement; // Flag to indicate if this is the first QA measurement.
     vector<pair<simtime_picosec, uint64_t>> _list_current_rtt_ewma;
     vector<pair<simtime_picosec, uint64_t>> _list_ecn_fraction;
     vector<pair<simtime_picosec, uint64_t>> _list_target_rtt_low;
@@ -336,31 +215,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, uint64_t>> _list_baremetal_latency;
     vector<simtime_picosec> _list_is_rtt_congested;
     vector<simtime_picosec> _list_is_ecn_congested;
-    vector<simtime_picosec> _list_is_dual_congested;
-    vector<simtime_picosec> _list_qa_free;
     vector<pair<simtime_picosec, uint64_t>> _list_retrans;
-    bool _did_qa_this_epoch;
-    float _ecn_fraction_ewma;
-    float _ecn_count_this_window;
-    float _good_count_this_window;
-    simtime_picosec _time_of_last_epoch;
-    uint32_t _last_cwnd;
-    float _max_queue_latency;
     uint32_t _consecutive_decreases;
-
-    // LCP-Gemini.
-    uint64_t _next_window_seq_no;
-    simtime_picosec _current_rtt_measurement;
-
-    // LCP-per-ack.
-    simtime_picosec _time_of_last_good_ack;
-    simtime_picosec _time_of_last_ecn;
-    simtime_picosec _ewma_time_between_good_acks;
-    simtime_picosec _ewma_time_between_ecn;
-    float _target_ecn_rate;
-    simtime_picosec _target_delay;
-    simtime_picosec _fs_range_rtt;
-    simtime_picosec _time_of_next_period;
 
 
     uint16_t _mss;
@@ -384,7 +240,6 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     bool _rtx_pending;
 
     // new CC variables
-    uint64_t _target_rtt;
     simtime_picosec _base_rtt; // Picoseconds.
     uint64_t _queue_size;
     uint32_t _consecutive_low_rtt;
@@ -394,26 +249,10 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     bool _target_based_received;
     bool _using_lgs = false;
     int consecutive_nack = 0;
-    bool ecn_last_rtt = false;
-    int trimmed_last_rtt = 0;
-    uint32_t consecutive_good_medium = 0;
-
-    // SentPackets _sent_packets;
-    uint64_t _highest_data_seq;
-    uint64_t t_last_decrease = 0;
-    int count_skipped = 0;
-    uint64_t t_last_fairness = 0;
-    uint64_t t_last_clear_byte = 0;
-    bool can_decrease = false;
-    bool can_clear_byte = false;
-    bool can_fairness = false;
-    uint64_t avg_rtt;
-    int rx_count = 0;
-    uint32_t achieved_bdp = 0;
     UecLogger *_logger;
     LcpSink *_sink;
 
-    uint16_t _crt_direction;
+    // uint16_t _crt_direction;
     vector<int> _path_ids;                 // path IDs to be used for ECMP FIB.
     vector<const Route *> _paths;          // paths in current permutation order
     vector<const Route *> _original_paths; // paths in original permutation
@@ -431,14 +270,8 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     simtime_picosec pacer_start_time = 0;
     PacketFlow _flow;
 
-    double exp_avg_ecn = 0;
-    double exp_avg_rtt = 0;
-
-    bool track_rate = true;
     simtime_picosec tracking_period = 0;
     simtime_picosec qa_period = 0;
-    int qa_mult = 0;
-    simtime_picosec ecn_rate_period = 0;
     simtime_picosec last_track_ts = 0;
     uint64_t tracking_bytes = 0;
 
@@ -460,64 +293,26 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<pair<simtime_picosec, uint64_t>> _list_nack;
     vector<pair<simtime_picosec, uint64_t>> _list_bts;
     vector<pair<simtime_picosec, uint64_t>> _list_fast_increase_event;
-    vector<pair<simtime_picosec, uint64_t>> _list_medium_increase_event;
     vector<pair<simtime_picosec, uint64_t>> _list_fast_decrease;
-    vector<pair<simtime_picosec, uint64_t>> _list_driving_loop;
-    vector<pair<simtime_picosec, int>> us_to_cs;
-    vector<pair<simtime_picosec, int>> ls_to_us;
 
     vector<const Route *> _good_entropies;
     bool _use_good_entropies;
-    bool _ignore_ecn_ack;
-    bool _ignore_ecn_data;
     std::size_t _max_good_entropies;
     std::size_t _next_good_entropy;
     std::vector<int> _entropy_array;
     int _num_entropies = -1;
     int current_entropy = 0;
     bool _enableDistanceBasedRtx;
-    bool _trimming_enabled;
     bool _bts_enabled = true;
     uint64_t sent_bytes_previous_window = 0;
-    uint64_t old_sent_bytes_previous_window = 0;
-    uint64_t cwnd_previous_window = 0;
     int _next_pathid;
     int _hop_count;
     int data_count_idx = 0;
-    int pkt_with_ecn_rtt;
-    int total_pkt_seen_rtt;
-    double current_ecn_rate = 0;
     simtime_picosec count_rtt = 0;
-    int counter_ecn_without_rtt = 0;
-    int count_gentle_decrease = 0;
-    simtime_picosec timestamp_zero_ecn = 0;
-    simtime_picosec timestamp_kmin = 0;
-    bool started_increasing = false;
-    enum InterState { NEUTRAL, GENTLE_DECREASE, INCREASE, UNDO_DECREASE };
-    InterState current_state = NEUTRAL;
-    simtime_picosec state_end = 0;
     simtime_picosec next_qa = 0;
-    simtime_picosec near_base_rtt = 0;
-    int increase_since_last_zero = 0;
-    int should_decrease = 0;
-    bool is_first_ecn = true;
-    simtime_picosec ecn_rtt_end = 0;
-    int count_add_from_zero_ecn = 0;
-    simtime_picosec last_ecn_seen = 0;
-    simtime_picosec last_freeze = 0;
-    simtime_picosec current_fd_end = 0;
-    int gent_dec_amount = 0;
-    simtime_picosec current_bonus_end = 0;
-    double bonus_rand = 0;
-    double previous_ecn_rate = 0;
-    bool rate_increasing = false;
 
     static double kmax, kmin;
 
-    vector<pair<simtime_picosec, int>> count_case_1;
-    vector<pair<simtime_picosec, int>> count_case_2;
-    vector<pair<simtime_picosec, int>> count_case_3;
-    vector<pair<simtime_picosec, int>> count_case_4;
     vector<pair<simtime_picosec, int>> list_ecn_rate;
     vector<pair<simtime_picosec, double>> list_sending_rate;
 
@@ -525,12 +320,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint64_t get_unacked();
 
     void adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, uint32_t ackno);
-    uint32_t medium_increase(simtime_picosec);
     void fast_increase();
-    bool no_ecn_last_target_rtt();
-    bool no_rtt_over_target_last_target_rtt();
-    bool ecn_congestion();
-    void drop_old_received();
     const Route *get_path();
     void mark_received(UecAck &pkt);
     void add_ack_path(const Route *rt);
@@ -540,12 +330,12 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     std::size_t get_sent_packet_idx(uint32_t pkt_seqno);
 
     void update_rtx_time();
-    void reduce_cwnd(uint64_t amount);
+    // void reduce_cwnd(uint64_t amount);
     void processNack(UecNack &nack);
     void processBts(UecPacket *nack);
-    void simulateTrimEvent(UecAck &nack);
+    // void simulateTrimEvent(UecAck &nack);
     void reduce_unacked(uint64_t amount);
-    void apply_timeout_penalty();
+    // void apply_timeout_penalty();
     void update_pacing_delay();
     void quick_adapt_drop();
 };
@@ -609,18 +399,6 @@ class LcpRtxTimerScanner : public EventSource {
     simtime_picosec _lastScan;
     typedef list<LcpSrc *> lcps_t;
     lcps_t _lcps;
-};
-
-
-class LcpEpochAgent : public EventSource {
-  public:
-    LcpEpochAgent(EventList &eventlist, LcpSrc *flow);
-    void doNextEvent();
-    void registerLcp(LcpSrc &LcpSrc);
-
-  private:
-    LcpSrc *flow;
-    simtime_picosec _next_epoch_time;
 };
 
 #endif
