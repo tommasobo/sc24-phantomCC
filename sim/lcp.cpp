@@ -60,6 +60,10 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
         _base_rtt = (((_base_rtt + precision_ts - 1) / precision_ts) * precision_ts);
     }
 
+    // if (precision_ts != 1) {
+    //     _target_rtt = (((_target_rtt + precision_ts - 1) / precision_ts) * precision_ts);
+    // }
+
     _rtt = _base_rtt;
     _rto = rtt + _hop_count * queueDrainTime + (rtt * 900000);
     _rto = _base_rtt * 3;
@@ -104,6 +108,8 @@ LcpSrc::LcpSrc(UecLogger *logger, TrafficLogger *pktLogger, EventList &eventList
     _ecn_count_this_window = 0;
     _good_count_this_window = 0;
     _consecutive_decreases = 0;
+
+    _flow_start_time = 0;
 }
 
 // Add deconstructor and save data once we are done.
@@ -564,22 +570,8 @@ void LcpSrc::mark_received(UecAck &pkt) {
         }
         _last_acked = seqno + _mss - 1;
         _list_acked_bytes.push_back(std::make_pair(eventlist().now() / 1000, _last_acked));
-        if (_enableDistanceBasedRtx) {
-            bool trigger = true;
-            // TODO: this could be optimized with counters or bitsets,
-            // but I'm doing this the simple way to avoid bugs while
-            // we don't need the optimizations
-            for (std::size_t k = 1; k < _sent_packets.size() / 2; ++k) {
-                if (!_sent_packets[k].acked) {
-                    trigger = false;
-                    break;
-                }
-            }
-            if (trigger) {
-                // TODO: what's the proper way to act if this packet was
-                // NACK'ed? Not super relevant right now as we are not enabling
-                // this feature anyway
-                _sent_packets[0].timer = eventlist().now();
+        for (std::size_t k = 1; k < _sent_packets.size() / 2; ++k) {
+            if (!_sent_packets[k].acked) {
                 _rtx_timeout_pending = true;
             }
         }
@@ -1207,29 +1199,29 @@ void LcpSrc::adjust_window(simtime_picosec ts, bool ecn, simtime_picosec rtt, ui
         }
 
         // Once QA's effects have materialized, we can update the window.
-        if (ackno >= _next_qa_sn) {
-            bool can_quick_adapt = LCP_USE_QUICK_ADAPT && saved_acked_bytes > 0; // Only quick adapt if we have a measurement to work with.
-            if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) && can_quick_adapt) {
-                quick_adapt_drop();
-                _next_qa_sn = _highest_sent; // Don't allow any window changes until we see a new sequence number.
-                cout << "Quick adapt triggered "  << _name << "_" << tag <<  ": current ackno: " << ackno << " next qa sn: " << _next_qa_sn << " highest sent: " << _highest_sent << endl;
+        // if (ackno >= _next_qa_sn) {
+        bool can_quick_adapt = LCP_USE_QUICK_ADAPT && saved_acked_bytes > 0 && ackno > _next_qa_sn; // Only quick adapt if we have a measurement to work with.
+        if ((rtt > TARGET_RTT_HIGH || _ecn_fraction_ewma > LCP_ECN_FRACTION_THRESHOLD_HIGH) && can_quick_adapt) {
+            quick_adapt_drop();
+            _next_qa_sn = _highest_sent; // Don't allow any window changes until we see a new sequence number.
+            // cout << "Quick adapt triggered "  << _name << "_" << tag <<  ": current ackno: " << ackno << " next qa sn: " << _next_qa_sn << " highest sent: " << _highest_sent << endl;
+            _consecutive_good_epochs = 0;
+        } else {
+            if (rtt_should_reduce || ecn_should_reduce) {
+                // We're in a bad state, decrease the window prorated across the acks.
+                _cwnd -= LCP_BETA * _mss;
                 _consecutive_good_epochs = 0;
             } else {
-                if (rtt_should_reduce || ecn_should_reduce) {
-                    // We're in a bad state, decrease the window prorated across the acks.
-                    _cwnd -= LCP_BETA * _mss;
-                    _consecutive_good_epochs = 0;
+                if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
+                    fast_increase();
                 } else {
-                    if (LCP_USE_FAST_INCREASE && _consecutive_good_epochs > LCP_FAST_INCREASE_THRESHOLD) {
-                        fast_increase();
-                    } else {
-                        // Prorate increase across the acks.
-                        uint32_t num_acks = _cwnd / _mss;
-                        _cwnd += (uint32_t) LCP_DELTA / num_acks;
-                    }
+                    // Prorate increase across the acks.
+                    uint32_t num_acks = _cwnd / _mss;
+                    _cwnd += (uint32_t) LCP_DELTA / num_acks;
                 }
             }
         }
+        // }
 
         if (COLLECT_DATA) {
             _list_current_rtt_ewma.push_back(std::make_pair(eventlist().now() / 1000, _current_rtt_ewma / 1000));
@@ -1273,7 +1265,10 @@ void LcpSrc::connect(Route *routeout, Route *routeback, LcpSink &sink, simtime_p
 }
 
 void LcpSrc::startflow() {
-    _flow_start_time = eventlist().now();
+    if (_flow_start_time == 0) {
+        _flow_start_time = eventlist().now();
+        cout << "Starting flow at time " << _flow_start_time << endl;
+    }
 
     send_packets();
 }
@@ -1610,7 +1605,7 @@ void LcpSrc::retransmit_packet() {
     for (std::size_t i = 0; i < _sent_packets.size(); ++i) {
         auto &sp = _sent_packets[i];
         if (_rtx_timeout_pending && !sp.acked && !sp.nacked && sp.timer <= eventlist().now() + _rto_margin) {
-            _cwnd = _mss;
+            // _cwnd = _mss;
             sp.timedOut = true;
             reduce_unacked(_mss);
         }
@@ -1921,7 +1916,10 @@ LcpRtxTimerScanner::LcpRtxTimerScanner(simtime_picosec scanPeriod, EventList &ev
     eventlist.sourceIsPendingRel(*this, 0);
 }
 
-void LcpRtxTimerScanner::registerLcp(LcpSrc &LcpSrc) { _lcps.push_back(&LcpSrc); }
+void LcpRtxTimerScanner::registerLcp(LcpSrc &LcpSrc) {
+    cout << "Registering LcpSrc " << LcpSrc.nodename() << endl;
+    _lcps.push_back(&LcpSrc);
+    }
 
 void LcpRtxTimerScanner::doNextEvent() {
     simtime_picosec now = eventlist().now();

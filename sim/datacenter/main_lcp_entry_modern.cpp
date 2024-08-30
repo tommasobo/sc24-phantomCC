@@ -937,7 +937,9 @@ int main(int argc, char **argv) {
                 net_paths[i][j] = NULL;
         }
 
-        TcpRtxTimerScanner tcpRtxScanner(timeFromMs(10), eventlist);
+        // LcpRtxTimerScanner lcpRtxScanner(timeFromUs((uint32_t)9), eventlist);
+        LcpRtxTimerScanner lcpRtxScanner(timeFromMs(1), eventlist);
+        MprdmaRtxTimerScanner mprdmaRtxScanner(timeFromUs((uint32_t)4), eventlist);
 
         for (size_t c = 0; c < all_conns->size(); c++) {
             connection *crt = all_conns->at(c);
@@ -997,7 +999,6 @@ int main(int argc, char **argv) {
                     }
 
                     // lcpEpochAgent->doNextEvent();
-                    // uecRtxScanner->registerUec(*lcpSrc);
 
                     switch (route_strategy) {
                         case ECMP_FIB:
@@ -1208,6 +1209,8 @@ int main(int argc, char **argv) {
 
                     lcpSrc = new LcpSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
 
+                    lcpRtxScanner.registerLcp(*lcpSrc);
+
                     lcpSrc->setNumberEntropies(256);
                     inter_srcs.push_back(lcpSrc);
 
@@ -1336,6 +1339,7 @@ int main(int argc, char **argv) {
                 MprdmaSrc::set_starting_cwnd(bdp);
 
                 mprdmaSrc = new MprdmaSrc(NULL, NULL, eventlist, rtt, bdp, 100, 6);
+                mprdmaRtxScanner.registerMprdma(*mprdmaSrc);
 
                 mprdmaSrc->setNumberEntropies(256);
                 intra_srcs.push_back(mprdmaSrc);
@@ -1467,9 +1471,17 @@ int main(int argc, char **argv) {
         }
 
         for (std::size_t i = 0; i < inter_srcs.size(); ++i) {
+            if (!inter_srcs[i]->_flow_finished) {
+                printf("Flow %d did not finish\n", inter_srcs[i]->flow_id());
+                exit(-1);
+            }
             delete inter_srcs[i];
         }
         for (std::size_t i = 0; i < intra_srcs.size(); ++i) {
+            if (!intra_srcs[i]->_flow_finished) {
+                printf("Flow %d did not finish\n", intra_srcs[i]->flow_id());
+                exit(-1);
+            }
             delete intra_srcs[i];
         }
         for (std::size_t i = 0; i < bbr_srcs.size(); ++i) {

@@ -513,22 +513,8 @@ void MprdmaSrc::mark_received(UecAck &pkt) {
             --_nack_rtx_pending;
         }
         _last_acked = seqno + _mss - 1;
-        if (_enableDistanceBasedRtx) {
-            bool trigger = true;
-            // TODO: this could be optimized with counters or bitsets,
-            // but I'm doing this the simple way to avoid bugs while
-            // we don't need the optimizations
-            for (std::size_t k = 1; k < _sent_packets.size() / 2; ++k) {
-                if (!_sent_packets[k].acked) {
-                    trigger = false;
-                    break;
-                }
-            }
-            if (trigger) {
-                // TODO: what's the proper way to act if this packet was
-                // NACK'ed? Not super relevant right now as we are not enabling
-                // this feature anyway
-                _sent_packets[0].timer = eventlist().now();
+        for (std::size_t k = 1; k < _sent_packets.size() / 2; ++k) {
+            if (!_sent_packets[k].acked) {
                 _rtx_timeout_pending = true;
             }
         }
@@ -827,23 +813,23 @@ void MprdmaSrc::processNack(UecNack &pkt) {
         _list_nack.push_back(std::make_pair(eventlist().now() / 1000, 1));
     }
 
-    // mark corresponding packet for retransmission
-    auto i = get_sent_packet_idx(pkt.seqno());
-    assert(i < _sent_packets.size());
+    // // mark corresponding packet for retransmission
+    // auto i = get_sent_packet_idx(pkt.seqno());
+    // assert(i < _sent_packets.size());
 
-    assert(!_sent_packets[i].acked); // TODO: would it be possible for a packet
-                                     // to receive a nack after being acked?
-    if (!_sent_packets[i].nacked) {
-        // ignore duplicate nacks for the same packet
-        _sent_packets[i].nacked = true;
-        ++_nack_rtx_pending;
-    }
+    // assert(!_sent_packets[i].acked); // TODO: would it be possible for a packet
+    //                                  // to receive a nack after being acked?
+    // if (!_sent_packets[i].nacked) {
+    //     // ignore duplicate nacks for the same packet
+    //     _sent_packets[i].nacked = true;
+    //     ++_nack_rtx_pending;
+    // }
 
-    bool success = resend_packet(i);
-    if (!_rtx_pending && !success) {
-        _rtx_pending = true;
-    }
-    send_packets();
+    // bool success = resend_packet(i);
+    // if (!_rtx_pending && !success) {
+    //     _rtx_pending = true;
+    // }
+    // send_packets();
 }
 
 void MprdmaSrc::simulateTrimEvent(UecAck &pkt) {
@@ -1925,7 +1911,8 @@ void MprdmaSrc::connect(Route *routeout, Route *routeback, MprdmaSink &sink, sim
 
 void MprdmaSrc::startflow() {
     ideal_x = x_gain;
-    _flow_start_time = eventlist().now();
+    if (_flow_start_time == 0)
+        _flow_start_time = eventlist().now();
 
     /* // printf("Starting Flow from %d to %d tag %d - RTT %lu - Target %lu - "
            "Time "
@@ -2266,7 +2253,7 @@ void MprdmaSrc::retransmit_packet() {
     for (std::size_t i = 0; i < _sent_packets.size(); ++i) {
         auto &sp = _sent_packets[i];
         if (_rtx_timeout_pending && !sp.acked && !sp.nacked && sp.timer <= eventlist().now() + _rto_margin) {
-            _cwnd = _mss;
+            // _cwnd = _mss;
             sp.timedOut = true;
             reduce_unacked(_mss);
         }

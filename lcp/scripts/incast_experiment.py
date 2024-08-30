@@ -26,9 +26,7 @@ TOPO = "lcp/configs/topos/fat_tree_100Gbps.topo"
 FOLDER = "exp_data/incast_experiment" + f"_{get_topo_name(TOPO)}"
 
 TMS = [
-    "lcp/configs/tms/simple/2_inter_100MB.cm",
-    # "configs/a/4_inter_100MB.cm",
-    # "configs/a/16_inter_100MB.cm",
+    "lcp/configs/tms/simple/4_inter_100MB.cm",
 ]
 
 run_experiment(CONFIG, TMS, TOPO, FOLDER, os_border=128)

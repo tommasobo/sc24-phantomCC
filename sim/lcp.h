@@ -217,6 +217,7 @@ class LcpSrc : public PacketSink, public EventSource, public TriggerTarget {
     vector<simtime_picosec> _list_is_ecn_congested;
     vector<pair<simtime_picosec, uint64_t>> _list_retrans;
     uint32_t _consecutive_decreases;
+    simtime_picosec _fct;
 
 
     uint16_t _mss;

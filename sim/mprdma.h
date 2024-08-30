@@ -315,19 +315,8 @@ class MprdmaSrc : public PacketSink, public EventSource, public TriggerTarget {
     static simtime_picosec pacing_delay;
     bool first_quick_adapt = false;
 
-    // LCP.
-    simtime_picosec _previous_rtt_ewma;
-    simtime_picosec _current_rtt_ewma;
-    uint64_t _next_measurement_seq_no;
-    uint32_t _consecutive_good_epochs;
-    simtime_picosec _time_of_next_epoch;
-    // uint64_t _bytes_receieved_since_last_epoch;
-    simtime_picosec _time_of_last_qa;
-    bool _first_qa_measurement;
 
-    // LCP-Gemini.
-    uint64_t _next_window_seq_no;
-    simtime_picosec _current_rtt_measurement;
+    bool _flow_finished = false;
 
   private:
     uint32_t _unacked;
@@ -342,7 +331,6 @@ class MprdmaSrc : public PacketSink, public EventSource, public TriggerTarget {
     uint16_t _crt_path = 0;
     uint32_t target_window;
     // LogSimInterface *_lgs;
-    bool _flow_finished = false;
 
     bool _rtx_timeout_pending;
     bool _rtx_pending;
